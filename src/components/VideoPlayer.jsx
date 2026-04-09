@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import Hls from 'hls.js';
-import { X, AlertCircle, Loader2, Tv, Download, Square } from 'lucide-react';
+import { X, AlertCircle, Loader2, Tv, Download, Square, PictureInPicture2 } from 'lucide-react';
 import { getChannelLogoUrl } from '../services/iptvService';
 
 function safeFilename(name) {
@@ -15,6 +15,12 @@ export default function VideoPlayer({ channel, onClose, isOpen }) {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [recording, setRecording] = useState(false);
+  const [pipActive, setPipActive] = useState(false);
+  const pipSupported =
+    typeof document !== 'undefined' &&
+    document.pictureInPictureEnabled &&
+    typeof HTMLVideoElement !== 'undefined' &&
+    !!HTMLVideoElement.prototype.requestPictureInPicture;
 
   useEffect(() => {
     if (!channel || !isOpen) return;
@@ -36,15 +42,10 @@ export default function VideoPlayer({ channel, onClose, isOpen }) {
     };
 
     if (Hls.isSupported() && isHls) {
-      const hls = new Hls({
-        enableWorker: true,
-        lowLatencyMode: true,
-      });
+      const hls = new Hls({ enableWorker: true, lowLatencyMode: true });
       hlsRef.current = hls;
-
       hls.loadSource(url);
       hls.attachMedia(video);
-
       hls.on(Hls.Events.MANIFEST_PARSED, () => setLoading(false));
       hls.on(Hls.Events.ERROR, (_, data) => {
         if (data.fatal) {
@@ -56,10 +57,7 @@ export default function VideoPlayer({ channel, onClose, isOpen }) {
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = url;
       video.addEventListener('loadedmetadata', () => setLoading(false));
-      video.addEventListener('error', () => {
-        setLoading(false);
-        setError('Flux indisponible');
-      });
+      video.addEventListener('error', () => { setLoading(false); setError('Flux indisponible'); });
     } else {
       setLoading(false);
       setError('Flux indisponible');
@@ -72,22 +70,42 @@ export default function VideoPlayer({ channel, onClose, isOpen }) {
   useEffect(() => {
     if (!isOpen) setRecording(false);
     return () => {
-      if (mediaRecorderRef.current?.state === 'recording') {
-        mediaRecorderRef.current.stop();
-      }
+      if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop();
       mediaRecorderRef.current = null;
     };
   }, [isOpen, channel?.id]);
 
+  // Sync état PiP
+  useEffect(() => {
+    const onEnter = () => setPipActive(true);
+    const onLeave = () => setPipActive(false);
+    const video = videoRef.current;
+    if (!video) return;
+    video.addEventListener('enterpictureinpicture', onEnter);
+    video.addEventListener('leavepictureinpicture', onLeave);
+    return () => {
+      video.removeEventListener('enterpictureinpicture', onEnter);
+      video.removeEventListener('leavepictureinpicture', onLeave);
+    };
+  }, [isOpen]);
+
+  const togglePip = async () => {
+    if (!videoRef.current) return;
+    try {
+      if (document.pictureInPictureElement) {
+        await document.exitPictureInPicture();
+      } else {
+        await videoRef.current.requestPictureInPicture();
+      }
+    } catch (_) {}
+  };
+
   const canRecord = () => {
     if (!videoRef.current || error || loading) return false;
-    const video = videoRef.current;
     try {
-      const stream = video.captureStream?.();
+      const stream = videoRef.current.captureStream?.();
       return stream && typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported('video/webm');
-    } catch {
-      return false;
-    }
+    } catch { return false; }
   };
 
   const startRecording = () => {
@@ -96,21 +114,16 @@ export default function VideoPlayer({ channel, onClose, isOpen }) {
     try {
       const stream = video.captureStream();
       const mime = MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm';
-      const recorder = new MediaRecorder(stream, {
-        mimeType: mime,
-        videoBitsPerSecond: 2500000,
-        audioBitsPerSecond: 128000,
-      });
+      const recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 2500000, audioBitsPerSecond: 128000 });
       chunksRef.current = [];
       recorder.ondataavailable = (e) => { if (e.data.size) chunksRef.current.push(e.data); };
       recorder.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: 'video/webm' });
         const url = URL.createObjectURL(blob);
-        const date = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, '').slice(0, 8);
-        const name = safeFilename(channel?.name);
+        const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
         const a = document.createElement('a');
         a.href = url;
-        a.download = `OneClickTV - ${name} - ${date}.webm`;
+        a.download = `OneClickTV - ${safeFilename(channel?.displayName || channel?.name)} - ${date}.webm`;
         a.click();
         URL.revokeObjectURL(url);
         setRecording(false);
@@ -118,21 +131,18 @@ export default function VideoPlayer({ channel, onClose, isOpen }) {
       recorder.start(1000);
       mediaRecorderRef.current = recorder;
       setRecording(true);
-    } catch (_) {
-      setError('Enregistrement non disponible');
-    }
+    } catch (_) { setError('Enregistrement non disponible'); }
   };
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current?.state === 'recording') {
-      mediaRecorderRef.current.stop();
-    }
+    if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop();
     mediaRecorderRef.current = null;
   };
 
   if (!isOpen) return null;
 
   const channelLogoUrl = channel ? getChannelLogoUrl(channel.tvgId, channel.name, channel.logo) : null;
+  const displayName = channel?.displayName || channel?.name;
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-black">
@@ -152,9 +162,23 @@ export default function VideoPlayer({ channel, onClose, isOpen }) {
             )}
             <Tv size={22} className={`text-[var(--text-muted)] ${channelLogoUrl ? 'hidden' : ''}`} />
           </div>
-          <h3 className="text-white font-semibold truncate text-lg">{channel?.name}</h3>
+          <h3 className="text-white font-semibold truncate text-lg">{displayName}</h3>
         </div>
+
         <div className="flex items-center gap-2 shrink-0">
+          {/* PiP */}
+          {pipSupported && !error && !loading && (
+            <button
+              type="button"
+              onClick={togglePip}
+              className={`p-2.5 rounded-xl transition-all backdrop-blur-sm ${pipActive ? 'bg-[var(--accent)] text-white' : 'bg-white/10 text-white hover:bg-white/20'}`}
+              aria-label="Picture-in-Picture"
+              title="Flottant (Picture-in-Picture)"
+            >
+              <PictureInPicture2 size={20} />
+            </button>
+          )}
+          {/* Enregistrement */}
           {channel && !error && !loading && (
             recording ? (
               <button
@@ -179,6 +203,7 @@ export default function VideoPlayer({ channel, onClose, isOpen }) {
               </button>
             )
           )}
+          {/* Fermer */}
           <button
             type="button"
             onClick={onClose}

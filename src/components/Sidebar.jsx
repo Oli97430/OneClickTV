@@ -1,30 +1,31 @@
-import { Tv, Newspaper, Trophy, Music, LayoutGrid, Shield } from 'lucide-react';
+import { Tv, Newspaper, Trophy, Music, LayoutGrid, Shield, Heart, History } from 'lucide-react';
 import { getChannelLogoUrl, getChannelFallbackLogoUrl } from '../services/iptvService';
 
 const CATEGORIES = [
-  { id: 'all', label: 'Toutes', icon: LayoutGrid },
-  { id: 'Actualités', label: 'Actualités', icon: Newspaper },
-  { id: 'Sport', label: 'Sport', icon: Trophy },
-  { id: 'Musique', label: 'Musique', icon: Music },
-  { id: 'Généraliste', label: 'Généraliste', icon: Tv },
-  { id: 'vpn', label: 'Accès VPN / Géoblocage', icon: Shield },
+  { id: 'all',         label: 'Toutes',               icon: LayoutGrid },
+  { id: 'favoris',    label: 'Favoris',               icon: Heart      },
+  { id: 'recents',    label: 'Récents',               icon: History    },
+  { id: 'Actualités', label: 'Actualités',            icon: Newspaper  },
+  { id: 'Sport',      label: 'Sport',                 icon: Trophy     },
+  { id: 'Musique',    label: 'Musique',               icon: Music      },
+  { id: 'Généraliste',label: 'Généraliste',           icon: Tv         },
+  { id: 'vpn',        label: 'Accès VPN / Géoblocage',icon: Shield     },
 ];
 
 const LOGOS_PER_CATEGORY = 4;
 
 function CategoryLogos({ channels }) {
   if (!channels || channels.length === 0) return null;
-  const toShow = channels.slice(0, LOGOS_PER_CATEGORY);
   return (
     <div className="flex items-center gap-1.5 shrink-0">
-      {toShow.map((ch) => {
+      {channels.slice(0, LOGOS_PER_CATEGORY).map((ch) => {
         const logoUrl = getChannelLogoUrl(ch.tvgId, ch.name, ch.logo);
-        const fallbackUrl = getChannelFallbackLogoUrl(ch.name);
+        const fallbackUrl = getChannelFallbackLogoUrl(ch.displayName || ch.name);
         return (
           <div
             key={ch.id}
             className="w-6 h-6 rounded-md overflow-hidden bg-[var(--bg-card)] border border-[var(--border)] flex items-center justify-center shrink-0"
-            title={ch.name}
+            title={ch.displayName || ch.name}
           >
             {logoUrl ? (
               <img
@@ -54,16 +55,31 @@ function CategoryLogos({ channels }) {
   );
 }
 
-export default function Sidebar({ category, onCategoryChange, onVpnClick, channels = [], isOpen, onClose }) {
+export default function Sidebar({
+  category, onCategoryChange, onVpnClick,
+  channels = [], favorites = [], recents = [],
+  isOpen, onClose,
+}) {
+  // Logos par catégorie de contenu (Actualités, Sport, etc.)
   const byCategory = {};
-  if (channels.length) {
-    for (const ch of channels) {
-      if (ch.category && ch.category !== 'all') {
-        if (!byCategory[ch.category]) byCategory[ch.category] = [];
-        if (byCategory[ch.category].length < LOGOS_PER_CATEGORY) byCategory[ch.category].push(ch);
-      }
+  for (const ch of channels) {
+    if (ch.category && ch.category !== 'all') {
+      if (!byCategory[ch.category]) byCategory[ch.category] = [];
+      if (byCategory[ch.category].length < LOGOS_PER_CATEGORY) byCategory[ch.category].push(ch);
     }
   }
+
+  const channelsForCat = (id) => {
+    if (id === 'favoris') return favorites;
+    if (id === 'recents') return recents;
+    return byCategory[id] || [];
+  };
+
+  const badgeCount = (id) => {
+    if (id === 'favoris') return favorites.length || null;
+    if (id === 'recents') return recents.length || null;
+    return null;
+  };
 
   return (
     <>
@@ -95,8 +111,10 @@ export default function Sidebar({ category, onCategoryChange, onVpnClick, channe
             {CATEGORIES.map((cat) => {
               const Icon = cat.icon;
               const isSelected = category === cat.id;
-              const categoryChannels = byCategory[cat.id] || [];
               const isVpn = cat.id === 'vpn';
+              const catChannels = channelsForCat(cat.id);
+              const count = badgeCount(cat.id);
+              const isFavOrRecent = cat.id === 'favoris' || cat.id === 'recents';
               return (
                 <li key={cat.id}>
                   <button
@@ -112,8 +130,16 @@ export default function Sidebar({ category, onCategoryChange, onVpnClick, channe
                   >
                     <Icon size={20} className="shrink-0 opacity-90" />
                     <span className="flex-1 truncate min-w-0 font-medium">{cat.label}</span>
-                    {!isVpn && categoryChannels.length > 0 && (
-                      <CategoryLogos channels={categoryChannels} />
+                    {!isVpn && (
+                      isFavOrRecent ? (
+                        count ? (
+                          <span className={`text-xs px-1.5 py-0.5 rounded-md font-semibold shrink-0 tabular-nums ${isSelected ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'bg-[var(--bg-card)] text-[var(--text-muted)]'}`}>
+                            {count}
+                          </span>
+                        ) : null
+                      ) : catChannels.length > 0 ? (
+                        <CategoryLogos channels={catChannels} />
+                      ) : null
                     )}
                   </button>
                 </li>
