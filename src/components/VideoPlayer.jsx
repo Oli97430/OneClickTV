@@ -1,10 +1,84 @@
 import { useEffect, useRef, useState } from 'react';
 import Hls from 'hls.js';
-import { X, AlertCircle, Loader2, Tv, Download, Square, PictureInPicture2 } from 'lucide-react';
+import { X, AlertCircle, Loader2, Tv, Download, Square, PictureInPicture2, Cast } from 'lucide-react';
 import { getChannelLogoUrl } from '../services/iptvService';
 
 function safeFilename(name) {
   return (name || 'chaîne').replace(/[<>:"/\\|?*]/g, '_').slice(0, 80);
+}
+
+/**
+ * États possibles du Cast :
+ * 'unavailable'    — SDK non chargé (pas Chrome ou Cast indispo)
+ * 'no_devices'     — SDK chargé mais aucun appareil détecté
+ * 'not_connected'  — Appareils détectés, pas de session active
+ * 'connecting'     — Connexion en cours
+ * 'connected'      — Session Chromecast active
+ */
+function useChromecast(channel, isOpen) {
+  const [castState, setCastState] = useState('unavailable');
+
+  // Charger sur le Chromecast quand la session est active ou que la chaîne change
+  useEffect(() => {
+    if (castState !== 'connected' || !channel?.url || !isOpen) return;
+    try {
+      const session = window.cast.framework.CastContext.getInstance().getCurrentSession();
+      if (!session) return;
+
+      const mediaInfo = new window.chrome.cast.media.MediaInfo(channel.url, 'application/x-mpegURL');
+      const meta = new window.chrome.cast.media.GenericMediaMetadata();
+      meta.title = channel.displayName || channel.name;
+      mediaInfo.metadata = meta;
+
+      const logoUrl = getChannelLogoUrl(channel.tvgId, channel.name, channel.logo);
+      if (logoUrl) meta.images = [{ url: logoUrl }];
+
+      session.loadMedia(new window.chrome.cast.media.LoadRequest(mediaInfo));
+    } catch (_) {}
+  }, [castState, channel?.id, isOpen]);
+
+  // Initialiser le SDK Cast
+  useEffect(() => {
+    const initCast = () => {
+      try {
+        const ctx = window.cast.framework.CastContext.getInstance();
+        ctx.setOptions({
+          receiverApplicationId: window.chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
+          autoJoinPolicy: window.chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED,
+        });
+
+        const syncState = () => {
+          const MAP = {
+            [window.cast.framework.CastState.NO_DEVICES_AVAILABLE]: 'no_devices',
+            [window.cast.framework.CastState.NOT_CONNECTED]:        'not_connected',
+            [window.cast.framework.CastState.CONNECTING]:           'connecting',
+            [window.cast.framework.CastState.CONNECTED]:            'connected',
+          };
+          setCastState(MAP[ctx.getCastState()] ?? 'no_devices');
+        };
+
+        ctx.addEventListener(window.cast.framework.CastContextEventType.CAST_STATE_CHANGED, syncState);
+        ctx.addEventListener(window.cast.framework.CastContextEventType.SESSION_STATE_CHANGED, syncState);
+        syncState();
+      } catch (_) {}
+    };
+
+    if (window.cast?.framework) {
+      initCast();
+    } else {
+      window.__onGCastApiAvailable = (ok) => { if (ok) initCast(); };
+    }
+  }, []);
+
+  const requestCast = () => {
+    try { window.cast.framework.CastContext.getInstance().requestSession(); } catch (_) {}
+  };
+
+  const stopCast = () => {
+    try { window.cast.framework.CastContext.getInstance().endCurrentSession(true); } catch (_) {}
+  };
+
+  return { castState, requestCast, stopCast };
 }
 
 export default function VideoPlayer({ channel, onClose, isOpen }) {
@@ -16,11 +90,16 @@ export default function VideoPlayer({ channel, onClose, isOpen }) {
   const [loading, setLoading] = useState(true);
   const [recording, setRecording] = useState(false);
   const [pipActive, setPipActive] = useState(false);
+
   const pipSupported =
     typeof document !== 'undefined' &&
     document.pictureInPictureEnabled &&
     typeof HTMLVideoElement !== 'undefined' &&
     !!HTMLVideoElement.prototype.requestPictureInPicture;
+
+  const { castState, requestCast, stopCast } = useChromecast(channel, isOpen);
+  const isCasting = castState === 'connected';
+  const castVisible = castState !== 'unavailable' && castState !== 'no_devices';
 
   useEffect(() => {
     if (!channel || !isOpen) return;
@@ -34,10 +113,7 @@ export default function VideoPlayer({ channel, onClose, isOpen }) {
     const isHls = url.toLowerCase().includes('.m3u8');
 
     const cleanup = () => {
-      if (hlsRef.current) {
-        hlsRef.current.destroy();
-        hlsRef.current = null;
-      }
+      if (hlsRef.current) { hlsRef.current.destroy(); hlsRef.current = null; }
       video.src = '';
     };
 
@@ -48,11 +124,7 @@ export default function VideoPlayer({ channel, onClose, isOpen }) {
       hls.attachMedia(video);
       hls.on(Hls.Events.MANIFEST_PARSED, () => setLoading(false));
       hls.on(Hls.Events.ERROR, (_, data) => {
-        if (data.fatal) {
-          setLoading(false);
-          setError('Flux indisponible');
-          cleanup();
-        }
+        if (data.fatal) { setLoading(false); setError('Flux indisponible'); cleanup(); }
       });
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = url;
@@ -66,7 +138,6 @@ export default function VideoPlayer({ channel, onClose, isOpen }) {
     return cleanup;
   }, [channel?.id, channel?.url, isOpen]);
 
-  // Arrêter l'enregistrement si on ferme ou change de chaîne
   useEffect(() => {
     if (!isOpen) setRecording(false);
     return () => {
@@ -75,7 +146,6 @@ export default function VideoPlayer({ channel, onClose, isOpen }) {
     };
   }, [isOpen, channel?.id]);
 
-  // Sync état PiP
   useEffect(() => {
     const onEnter = () => setPipActive(true);
     const onLeave = () => setPipActive(false);
@@ -92,11 +162,8 @@ export default function VideoPlayer({ channel, onClose, isOpen }) {
   const togglePip = async () => {
     if (!videoRef.current) return;
     try {
-      if (document.pictureInPictureElement) {
-        await document.exitPictureInPicture();
-      } else {
-        await videoRef.current.requestPictureInPicture();
-      }
+      if (document.pictureInPictureElement) await document.exitPictureInPicture();
+      else await videoRef.current.requestPictureInPicture();
     } catch (_) {}
   };
 
@@ -147,6 +214,7 @@ export default function VideoPlayer({ channel, onClose, isOpen }) {
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-black">
       <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between gap-3 px-4 py-3 bg-gradient-to-b from-black/90 to-transparent backdrop-blur-md">
+        {/* Logo + nom */}
         <div className="flex items-center gap-3 min-w-0 flex-1">
           <div className="w-11 h-11 rounded-xl overflow-hidden bg-[var(--bg-card)] border border-[var(--border)] flex items-center justify-center shrink-0 shadow-lg">
             {channelLogoUrl && (
@@ -154,18 +222,42 @@ export default function VideoPlayer({ channel, onClose, isOpen }) {
                 src={channelLogoUrl}
                 alt=""
                 className="w-full h-full object-contain"
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                  e.target.nextElementSibling?.classList.remove('hidden');
-                }}
+                onError={(e) => { e.target.style.display = 'none'; e.target.nextElementSibling?.classList.remove('hidden'); }}
               />
             )}
             <Tv size={22} className={`text-[var(--text-muted)] ${channelLogoUrl ? 'hidden' : ''}`} />
           </div>
-          <h3 className="text-white font-semibold truncate text-lg">{displayName}</h3>
+          <div className="min-w-0">
+            <h3 className="text-white font-semibold truncate text-lg leading-tight">{displayName}</h3>
+            {isCasting && (
+              <p className="text-blue-400 text-xs font-medium flex items-center gap-1">
+                <Cast size={11} /> Diffusion sur Chromecast…
+              </p>
+            )}
+          </div>
         </div>
 
+        {/* Boutons */}
         <div className="flex items-center gap-2 shrink-0">
+          {/* Chromecast */}
+          {castVisible && (
+            <button
+              type="button"
+              onClick={isCasting ? stopCast : requestCast}
+              className={`p-2.5 rounded-xl transition-all backdrop-blur-sm ${
+                isCasting
+                  ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30'
+                  : castState === 'connecting'
+                    ? 'bg-white/20 text-blue-300 animate-pulse'
+                    : 'bg-white/10 text-white hover:bg-white/20'
+              }`}
+              aria-label={isCasting ? 'Arrêter le Cast' : 'Caster sur Chromecast'}
+              title={isCasting ? 'Arrêter le Cast' : 'Caster sur un appareil'}
+            >
+              <Cast size={20} />
+            </button>
+          )}
+
           {/* PiP */}
           {pipSupported && !error && !loading && (
             <button
@@ -173,11 +265,12 @@ export default function VideoPlayer({ channel, onClose, isOpen }) {
               onClick={togglePip}
               className={`p-2.5 rounded-xl transition-all backdrop-blur-sm ${pipActive ? 'bg-[var(--accent)] text-white' : 'bg-white/10 text-white hover:bg-white/20'}`}
               aria-label="Picture-in-Picture"
-              title="Flottant (Picture-in-Picture)"
+              title="Fenêtre flottante (Picture-in-Picture)"
             >
               <PictureInPicture2 size={20} />
             </button>
           )}
+
           {/* Enregistrement */}
           {channel && !error && !loading && (
             recording ? (
@@ -203,6 +296,7 @@ export default function VideoPlayer({ channel, onClose, isOpen }) {
               </button>
             )
           )}
+
           {/* Fermer */}
           <button
             type="button"
