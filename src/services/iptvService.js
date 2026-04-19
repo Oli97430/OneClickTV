@@ -41,11 +41,10 @@ function getDisplayName(name) {
     .trim();
 }
 
-/** Score de préférence : HLS > non-HLS, non-bloqué > bloqué */
+/** Score de préférence : HLS > non-HLS */
 function channelScore(name, url) {
   const isHls = url.toLowerCase().includes('.m3u8');
-  const isBlocked = /geo.?block/i.test(name);
-  return (isHls ? 2 : 0) + (isBlocked ? 0 : 1);
+  return isHls ? 2 : 0;
 }
 
 /** Déduplique les chaînes par nom normalisé, en gardant celle avec le meilleur score */

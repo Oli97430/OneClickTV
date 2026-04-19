@@ -1,10 +1,11 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Menu, Loader2, Sun, Moon, RefreshCw } from 'lucide-react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { Menu, Loader2, Sun, Moon, RefreshCw, Tv } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import SearchBar from './components/SearchBar';
 import VideoCard from './components/VideoCard';
 import VideoPlayer from './components/VideoPlayer';
 import VpnInfo from './components/VpnInfo';
+import VodBrowser from './components/VodBrowser';
 import { fetchFrenchChannels } from './services/iptvService';
 
 function loadFromStorage(key, fallback) {
@@ -16,26 +17,34 @@ function loadFromStorage(key, fallback) {
 }
 
 export default function App() {
-  const [channels, setChannels] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [category, setCategory] = useState('all');
-  const [search, setSearch] = useState('');
+  const [channels, setChannels]         = useState([]);
+  const [loading, setLoading]           = useState(true);
+  const [error, setError]               = useState(null);
+  const [category, setCategory]         = useState('all');
+  const [search, setSearch]             = useState('');
   const [selectedChannel, setSelectedChannel] = useState(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [vpnInfoOpen, setVpnInfoOpen] = useState(false);
-  const [theme, setTheme] = useState(() => loadFromStorage('theme', 'dark'));
-  const [favorites, setFavorites] = useState(() => loadFromStorage('favorites', []));
-  const [recents, setRecents] = useState(() => loadFromStorage('recents', []));
-  const [loadKey, setLoadKey] = useState(0);
+  const [sidebarOpen, setSidebarOpen]   = useState(false);
+  const [vpnInfoOpen, setVpnInfoOpen]   = useState(false);
+  const [theme, setTheme]               = useState(() => loadFromStorage('theme', 'dark'));
+  const [tvMode, setTvMode]             = useState(() => loadFromStorage('tvMode', false));
+  const [favorites, setFavorites]       = useState(() => loadFromStorage('favorites', []));
+  const [recents, setRecents]           = useState(() => loadFromStorage('recents', []));
+  const [loadKey, setLoadKey]           = useState(0);
+  const [vodActive, setVodActive]       = useState(false);
 
-  // Appliquer le thème
+  const gridRef = useRef(null);
+
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  // Charger les chaînes (loadKey > 0 = force refresh du cache)
+  useEffect(() => {
+    localStorage.setItem('tvMode', JSON.stringify(tvMode));
+    // En mode TV, on masque la sidebar par défaut (même sur grand écran)
+    if (tvMode) setSidebarOpen(false);
+  }, [tvMode]);
+
   useEffect(() => {
     setLoading(true);
     setError(null);
@@ -48,7 +57,7 @@ export default function App() {
   const toggleFavorite = useCallback((channel) => {
     setFavorites((prev) => {
       const exists = prev.some((c) => c.id === channel.id);
-      const next = exists ? prev.filter((c) => c.id !== channel.id) : [...prev, channel];
+      const next   = exists ? prev.filter((c) => c.id !== channel.id) : [...prev, channel];
       localStorage.setItem('favorites', JSON.stringify(next));
       return next;
     });
@@ -58,10 +67,54 @@ export default function App() {
     setSelectedChannel(channel);
     setRecents((prev) => {
       const without = prev.filter((c) => c.id !== channel.id);
-      const next = [channel, ...without].slice(0, 10);
+      const next    = [channel, ...without].slice(0, 10);
       localStorage.setItem('recents', JSON.stringify(next));
       return next;
     });
+  }, []);
+
+  const focusFirstCard = useCallback(() => {
+    setTimeout(() => gridRef.current?.querySelector('[data-card]')?.focus(), 50);
+  }, []);
+
+  const handleCategoryChange = useCallback((id) => {
+    setVodActive(false);
+    setCategory(id);
+    setSidebarOpen(false);
+    focusFirstCard();
+  }, [focusFirstCard]);
+
+  const handleVodClick = useCallback(() => {
+    setVodActive(true);
+    setSidebarOpen(false);
+  }, []);
+
+  // Navigation D-pad dans la grille
+  const handleGridKeyDown = useCallback((e) => {
+    if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) return;
+    const grid = gridRef.current;
+    if (!grid) return;
+
+    const cards = Array.from(grid.querySelectorAll('[data-card]'));
+    const idx   = cards.indexOf(document.activeElement);
+    if (idx === -1) return;
+    e.preventDefault();
+
+    if (e.key === 'ArrowRight') {
+      cards[Math.min(idx + 1, cards.length - 1)]?.focus();
+    } else if (e.key === 'ArrowLeft') {
+      cards[Math.max(idx - 1, 0)]?.focus();
+    } else {
+      const rect = cards[idx].getBoundingClientRect();
+      const pool = e.key === 'ArrowDown'
+        ? cards.filter((c) => c.getBoundingClientRect().top > rect.top + 10)
+        : cards.filter((c) => c.getBoundingClientRect().top < rect.top - 10);
+      if (!pool.length) return;
+      pool.reduce((best, c) =>
+        Math.abs(c.getBoundingClientRect().left - rect.left) <
+        Math.abs(best.getBoundingClientRect().left - rect.left) ? c : best
+      ).focus();
+    }
   }, []);
 
   const favoriteIds = useMemo(() => new Set(favorites.map((c) => c.id)), [favorites]);
@@ -84,37 +137,65 @@ export default function App() {
   }, [channels, category, search, favorites, recents]);
 
   const emptyMessage = () => {
-    if (category === 'favoris') return 'Aucun favori pour l\'instant. Cliquez sur ♥ pour en ajouter.';
+    if (category === 'favoris') return "Aucun favori pour l'instant. Cliquez sur ♥ pour en ajouter.";
     if (category === 'recents') return 'Aucune chaîne récemment regardée.';
     return 'Aucune chaîne ne correspond à votre recherche.';
   };
+
+  // Grille responsive : mode TV = moins de colonnes, cartes plus grandes
+  const gridCols = tvMode
+    ? 'grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4'
+    : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6';
 
   return (
     <div className="min-h-screen flex bg-[var(--bg-base)]">
       <Sidebar
         category={category}
-        onCategoryChange={(id) => { setCategory(id); setSidebarOpen(false); }}
+        onCategoryChange={handleCategoryChange}
         onVpnClick={() => { setVpnInfoOpen(true); setSidebarOpen(false); }}
         channels={channels}
         favorites={favorites}
         recents={recents}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        onFocusGrid={focusFirstCard}
+        tvMode={tvMode}
+        onVodClick={handleVodClick}
+        vodActive={vodActive}
       />
 
       <main className="flex-1 flex flex-col min-w-0">
-        <header className="sticky top-0 z-20 flex items-center gap-3 px-4 py-3 lg:px-6 lg:py-4 bg-[var(--bg-base)]/80 border-b border-[var(--border)] backdrop-blur-xl">
+        <header className={`sticky top-0 z-20 flex items-center gap-3 bg-[var(--bg-base)]/80 border-b border-[var(--border)] backdrop-blur-xl ${tvMode ? 'px-5 py-4' : 'px-4 py-3 lg:px-6 lg:py-4'}`}>
+          {/* Bouton menu — toujours visible en tvMode, sinon mobile seulement */}
           <button
             type="button"
             onClick={() => setSidebarOpen((o) => !o)}
-            className="lg:hidden p-2.5 rounded-xl bg-[var(--bg-card)] text-[var(--text-primary)] hover:bg-[var(--border-hover)] transition-colors"
+            className={`p-2.5 rounded-xl bg-[var(--bg-card)] text-[var(--text-primary)] hover:bg-[var(--border-hover)] transition-colors ${tvMode ? '' : 'lg:hidden'}`}
             aria-label="Menu"
           >
-            <Menu size={22} />
+            <Menu size={tvMode ? 26 : 22} />
           </button>
-          <div className="flex-1 max-w-xl">
+
+          <div className={`flex-1 ${tvMode ? 'max-w-2xl' : 'max-w-xl'}`}>
             <SearchBar value={search} onChange={setSearch} />
           </div>
+
+          {/* Toggle mode TV */}
+          <button
+            type="button"
+            onClick={() => setTvMode((m) => !m)}
+            className={`p-2.5 rounded-xl transition-colors shrink-0 ${
+              tvMode
+                ? 'bg-[var(--accent)] text-white shadow-lg'
+                : 'bg-[var(--bg-card)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--border-hover)]'
+            }`}
+            aria-label="Mode TV"
+            title={tvMode ? 'Désactiver le mode TV' : 'Activer le mode TV (box Android)'}
+          >
+            <Tv size={tvMode ? 22 : 20} />
+          </button>
+
+          {/* Toggle thème */}
           <button
             type="button"
             onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
@@ -126,7 +207,7 @@ export default function App() {
           </button>
         </header>
 
-        <div className="flex-1 p-4 lg:p-6 lg:pb-10">
+        <div className={`flex-1 ${tvMode ? 'p-5 pb-12' : 'p-4 lg:p-6 lg:pb-10'}`}>
           {loading && (
             <div className="flex flex-col items-center justify-center py-24 gap-5">
               <div className="rounded-2xl bg-[var(--bg-card)] p-6 shadow-[var(--shadow-lg)]">
@@ -152,15 +233,21 @@ export default function App() {
             </div>
           )}
 
-          {!loading && !error && (
+          {vodActive && <VodBrowser tvMode={tvMode} />}
+
+          {!vodActive && !loading && !error && (
             <>
               <div className="flex items-center gap-3 mb-5">
-                <span className="text-[var(--text-muted)] text-sm font-medium">
+                <span className={`text-[var(--text-muted)] font-medium ${tvMode ? 'text-sm' : 'text-sm'}`}>
                   {filteredChannels.length} chaîne{filteredChannels.length !== 1 ? 's' : ''}
                 </span>
                 <span className="h-px flex-1 max-w-[120px] bg-[var(--border)]" aria-hidden />
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 lg:gap-5">
+              <div
+                ref={gridRef}
+                onKeyDown={handleGridKeyDown}
+                className={`grid gap-4 lg:gap-5 ${gridCols}`}
+              >
                 {filteredChannels.map((channel) => (
                   <VideoCard
                     key={channel.id}
@@ -168,6 +255,7 @@ export default function App() {
                     onSelect={handleSelectChannel}
                     isFavorite={favoriteIds.has(channel.id)}
                     onToggleFavorite={toggleFavorite}
+                    tvMode={tvMode}
                   />
                 ))}
               </div>
@@ -185,6 +273,7 @@ export default function App() {
         channel={selectedChannel}
         onClose={() => setSelectedChannel(null)}
         isOpen={!!selectedChannel}
+        tvMode={tvMode}
       />
 
       <VpnInfo isOpen={vpnInfoOpen} onClose={() => setVpnInfoOpen(false)} />
