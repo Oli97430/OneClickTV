@@ -10,7 +10,6 @@ OneClickTV est une application de bureau (Windows / macOS / Linux) et mobile (An
 
 ### Chaînes live
 - **Plus de 100 chaînes en direct** — Actualités, Sport, Musique, Généraliste
-- **Recherche instantanée** — Filtrez par nom ou catégorie
 - **Favoris & Récents** — Accès rapide aux chaînes préférées et dernièrement regardées
 - **Lecteur HLS intégré** — Lecture fluide des flux `.m3u8` via HLS.js
 - **EPG temps réel** — Programme en cours affiché sur chaque chaîne avec barre de progression
@@ -82,7 +81,7 @@ npm run dev
 npm run build:desktop
 ```
 
-Génère `release/OneClickTV Setup 1.0.0.exe`.
+Génère `release/OneClickTV Setup 1.1.0.exe`.
 
 ### Compiler pour Android
 
@@ -124,7 +123,7 @@ npm run cap:android
 | Source | Type | Notes |
 |---|---|---|
 | [iptv-org/iptv](https://github.com/iptv-org/iptv) | Chaînes live | Playlist `fr.m3u`, flux HLS publics |
-| [Arte API v3](https://api.arte.tv/api/emac/v3/fr/web/data/) | VOD | Catalogue Arte (France + Allemagne + DOM-TOM) |
+| [Arte API v4](https://api.arte.tv/api/emac/v4/fr/web/pages/HOME/) | VOD | Catalogue Arte (France + Allemagne + DOM-TOM) |
 | [Arte Player API v2](https://api.arte.tv/api/player/v2/config/fr/) | VOD stream | Résolution HLS, accessible globalement |
 | [France TV](https://www.france.tv) | Replay | Liens directs vers les replays officiels |
 | [EPG.pw](https://epg.pw) | EPG | Guide des programmes temps réel |

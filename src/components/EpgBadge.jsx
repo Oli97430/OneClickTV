@@ -43,7 +43,7 @@ export default function EpgBadge({ tvgId, tvMode = false }) {
   }, [tvgId]);
 
   return (
-    <div ref={containerRef} className={`px-3.5 pb-3 -mt-0.5 ${!program ? 'min-h-[24px]' : ''}`}>
+    <div ref={containerRef} className={`px-3.5 pb-3 ${!program ? 'min-h-[20px]' : ''}`}>
       {program && (
         <>
           <p
@@ -52,9 +52,9 @@ export default function EpgBadge({ tvgId, tvMode = false }) {
           >
             {program.title}
           </p>
-          <div className="mt-1 h-[3px] rounded-full bg-[var(--border)] overflow-hidden">
+          <div className="mt-1.5 h-[2px] rounded-full bg-[var(--border)] overflow-hidden">
             <div
-              className="h-full bg-[var(--accent)]/70 rounded-full"
+              className="h-full bg-[var(--accent)] rounded-full"
               style={{ width: `${progress}%`, transition: 'width 1s linear' }}
             />
           </div>

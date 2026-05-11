@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Loader2, RefreshCw, ExternalLink, Film, ChevronRight } from 'lucide-react';
+import { Loader2, RefreshCw, ExternalLink, Film, X } from 'lucide-react';
 import VodCard from './VodCard';
 import {
   fetchArteVideos, resolveArteStream, fetchArteProgramMeta,
@@ -16,19 +16,15 @@ const SOURCES = [
 function ArteBrowser({ onPlay, tvMode, gridKeyDown, gridRef }) {
   const [catId, setCatId]     = useState(ARTE_CATEGORIES[0].id);
   const [items, setItems]     = useState([]);
-  const [page, setPage]       = useState(1);
-  const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState(null);
 
-  const load = useCallback(async (cId, pg, replace) => {
+  const load = useCallback(async (cId) => {
     setLoading(true);
     setError(null);
     try {
-      const { items: newItems, hasMore: more } = await fetchArteVideos(cId, pg, 20);
-      setItems((prev) => replace ? newItems : [...prev, ...newItems]);
-      setHasMore(more);
-      setPage(pg);
+      const { items: newItems } = await fetchArteVideos(cId);
+      setItems(newItems);
     } catch (e) {
       setError('Erreur de chargement Arte. Vérifiez votre connexion.');
     } finally {
@@ -36,7 +32,7 @@ function ArteBrowser({ onPlay, tvMode, gridKeyDown, gridRef }) {
     }
   }, []);
 
-  useEffect(() => { load(catId, 1, true); }, [catId]);
+  useEffect(() => { load(catId); }, [catId]);
 
   const cols = tvMode
     ? 'grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
@@ -44,16 +40,15 @@ function ArteBrowser({ onPlay, tvMode, gridKeyDown, gridRef }) {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Filtre catégories */}
       <div className="flex gap-2 flex-wrap">
         {ARTE_CATEGORIES.map((cat) => (
           <button
             key={cat.id}
             type="button"
             onClick={() => setCatId(cat.id)}
-            className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-all ${
+            className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-all duration-200 ${
               catId === cat.id
-                ? 'bg-orange-500 text-white shadow-md'
+                ? 'bg-orange-500 text-white shadow-md shadow-orange-500/25'
                 : 'bg-[var(--bg-card)] text-[var(--text-secondary)] border border-[var(--border)] hover:border-orange-400/50 hover:text-[var(--text-primary)]'
             }`}
           >
@@ -62,43 +57,27 @@ function ArteBrowser({ onPlay, tvMode, gridKeyDown, gridRef }) {
         ))}
       </div>
 
-      {/* Grille */}
       {!loading && !error && items.length > 0 && (
-        <>
-          <div ref={gridRef} onKeyDown={gridKeyDown} className={`grid gap-4 ${cols}`}>
-            {items.map((item) => (
-              <VodCard key={item.id} item={item} onPlay={onPlay} tvMode={tvMode} />
-            ))}
-          </div>
-          {hasMore && (
-            <div className="flex justify-center mt-2">
-              <button
-                type="button"
-                onClick={() => load(catId, page + 1, false)}
-                disabled={loading}
-                className="px-6 py-2.5 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-orange-400/40 font-medium text-sm transition-all disabled:opacity-50 flex items-center gap-2"
-              >
-                <ChevronRight size={16} />
-                Charger plus
-              </button>
-            </div>
-          )}
-        </>
+        <div ref={gridRef} onKeyDown={gridKeyDown} className={`grid gap-4 ${cols} animate-fade-in-up`}>
+          {items.map((item) => (
+            <VodCard key={item.id} item={item} onPlay={onPlay} tvMode={tvMode} />
+          ))}
+        </div>
       )}
 
       {loading && (
-        <div className="flex justify-center py-16">
+        <div className="flex justify-center py-16 animate-fade-in">
           <Loader2 className="text-orange-500 animate-spin" size={40} />
         </div>
       )}
 
       {error && (
-        <div className="flex flex-col items-center gap-3 py-16">
+        <div className="flex flex-col items-center gap-3 py-16 animate-fade-in">
           <p className="text-[var(--text-muted)]">{error}</p>
           <button
             type="button"
-            onClick={() => load(catId, 1, true)}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--accent)] text-white text-sm"
+            onClick={() => load(catId)}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-sm font-medium transition-all"
           >
             <RefreshCw size={14} /> Réessayer
           </button>
@@ -202,25 +181,24 @@ function VodPlayerOverlay({ programId, onClose }) {
   }, [streamUrl]);
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-black">
-      {/* Header */}
-      <div className="absolute top-0 left-0 right-0 z-10 flex items-center gap-3 px-4 py-3 bg-gradient-to-b from-black/90 to-transparent">
+    <div className="fixed inset-0 z-50 flex flex-col bg-black animate-fade-in">
+      <div className="absolute top-0 left-0 right-0 z-10 flex items-center gap-3 px-4 py-3 bg-gradient-to-b from-black/80 via-black/40 to-transparent">
         <div className="flex-1 min-w-0">
           {meta && (
             <>
               <p className="text-white font-semibold text-lg truncate">{meta.title}</p>
-              {meta.subtitle && <p className="text-white/60 text-sm truncate">{meta.subtitle}</p>}
+              {meta.subtitle && <p className="text-white/50 text-sm truncate mt-0.5">{meta.subtitle}</p>}
             </>
           )}
         </div>
-        <span className="text-xs font-bold px-2 py-1 rounded-md bg-orange-500/80 text-white">Arte</span>
+        <span className="text-[10px] font-bold px-2 py-1 rounded-md bg-orange-500/80 text-white uppercase tracking-wide">Arte</span>
         <button
           type="button"
           onClick={onClose}
-          className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all"
+          className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all duration-200"
           aria-label="Fermer"
         >
-          ✕
+          <X size={20} />
         </button>
       </div>
 

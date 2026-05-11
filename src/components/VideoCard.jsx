@@ -1,8 +1,8 @@
-import { Heart, Clock } from 'lucide-react';
+import { Heart, Clock, Play } from 'lucide-react';
 import { getChannelLogoUrl, getChannelFallbackLogoUrl } from '../services/iptvService';
 import EpgBadge from './EpgBadge';
 
-export default function VideoCard({ channel, onSelect, isFavorite, onToggleFavorite, tvMode = false }) {
+export default function VideoCard({ channel, onSelect, isFavorite, onToggleFavorite, tvMode = false, index = 0 }) {
   const displayName = channel.displayName || channel.name;
   const logoUrl = getChannelLogoUrl(channel.tvgId, channel.name, channel.logo);
   const fallbackUrl = getChannelFallbackLogoUrl(displayName);
@@ -18,14 +18,16 @@ export default function VideoCard({ channel, onSelect, isFavorite, onToggleFavor
       data-card="true"
       onKeyDown={handleKeyDown}
       onClick={() => onSelect(channel)}
+      style={{ animationDelay: `${Math.min(index * 30, 600)}ms` }}
       className="
         group relative rounded-2xl overflow-hidden
         bg-[var(--bg-card)] border border-[var(--border)]
-        hover:border-[var(--accent)]/40 hover:shadow-[var(--shadow-lg)] hover:shadow-[var(--accent)]/5
-        active:scale-[0.98]
+        hover:border-[var(--accent)]/30 hover:shadow-[var(--shadow-lg)] hover:shadow-[var(--accent)]/5
+        active:scale-[0.97]
         transition-all duration-200 cursor-pointer
         flex flex-col
         focus:outline-none
+        animate-fade-in-up
       "
     >
       <div className={`bg-[var(--bg-base)] flex items-center justify-center relative overflow-hidden ${tvMode ? 'aspect-[4/3]' : 'aspect-video'}`}>
@@ -33,7 +35,7 @@ export default function VideoCard({ channel, onSelect, isFavorite, onToggleFavor
           <img
             src={logoUrl}
             alt=""
-            className={`w-full h-full object-contain group-hover:scale-105 group-focus:scale-105 transition-transform duration-300 ${tvMode ? 'p-6' : 'p-5'}`}
+            className={`w-full h-full object-contain group-hover:scale-110 group-focus:scale-110 transition-transform duration-500 ease-out ${tvMode ? 'p-6' : 'p-5'}`}
             onError={(e) => {
               e.target.style.display = 'none';
               e.target.nextElementSibling?.classList.remove('hidden');
@@ -43,14 +45,14 @@ export default function VideoCard({ channel, onSelect, isFavorite, onToggleFavor
         <img
           src={fallbackUrl}
           alt=""
-          className={`w-full h-full object-contain group-hover:scale-105 group-focus:scale-105 transition-transform duration-300 ${tvMode ? 'p-6' : 'p-5'} ${logoUrl ? 'hidden' : ''}`}
+          className={`w-full h-full object-contain group-hover:scale-110 group-focus:scale-110 transition-transform duration-500 ease-out ${tvMode ? 'p-6' : 'p-5'} ${logoUrl ? 'hidden' : ''}`}
           onError={(e) => {
             e.target.style.display = 'none';
             e.target.nextElementSibling?.classList.remove('hidden');
           }}
         />
         <div
-          className="hidden w-full h-full items-center justify-center text-[var(--text-muted)] group-hover:text-[var(--accent)]/80 bg-[var(--bg-base)]"
+          className="hidden w-full h-full items-center justify-center text-[var(--text-muted)] bg-[var(--bg-base)]"
           aria-hidden
         >
           <span className={`font-bold ${tvMode ? 'text-4xl' : 'text-2xl'}`}>
@@ -58,24 +60,25 @@ export default function VideoCard({ channel, onSelect, isFavorite, onToggleFavor
           </span>
         </div>
 
-        {/* Badge catégorie */}
-        <span className="absolute bottom-2.5 right-2.5 text-[10px] font-medium px-2 py-1 rounded-lg bg-black/70 text-[var(--text-secondary)] backdrop-blur-sm">
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 group-focus:bg-black/20 transition-all duration-300 flex items-center justify-center pointer-events-none">
+          <div className="opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-all duration-300 scale-75 group-hover:scale-100 group-focus:scale-100 bg-[var(--accent)]/90 rounded-full p-2.5 shadow-xl backdrop-blur-sm">
+            <Play size={tvMode ? 20 : 16} className="text-white" fill="currentColor" />
+          </div>
+        </div>
+
+        <span className="absolute bottom-2 right-2 text-[9px] font-semibold px-2 py-0.5 rounded-md bg-black/60 text-white/70 backdrop-blur-sm">
           {channel.category}
         </span>
 
-        {/* Badge pas 24h24 */}
-        <div className="absolute top-2 left-2 flex gap-1">
-          {channel.not247 && (
-            <span
-              className="flex items-center px-1.5 py-1 rounded-md bg-black/70 text-sky-400 backdrop-blur-sm"
-              title="Pas disponible 24h/24"
-            >
-              <Clock size={10} />
-            </span>
-          )}
-        </div>
+        {channel.not247 && (
+          <span
+            className="absolute top-2 left-2 flex items-center px-1.5 py-1 rounded-md bg-black/60 text-sky-400 backdrop-blur-sm"
+            title="Pas disponible 24h/24"
+          >
+            <Clock size={10} />
+          </span>
+        )}
 
-        {/* Bouton favori */}
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onToggleFavorite(channel); }}
@@ -83,8 +86,8 @@ export default function VideoCard({ channel, onSelect, isFavorite, onToggleFavor
           className={`
             absolute top-2 right-2 p-1.5 rounded-lg backdrop-blur-sm transition-all duration-200
             ${isFavorite
-              ? 'text-rose-400 bg-black/70 opacity-100'
-              : 'text-white/60 bg-black/40 opacity-0 group-hover:opacity-100 group-focus:opacity-100 group-focus-within:opacity-100'}
+              ? 'text-rose-400 bg-black/60 opacity-100 scale-100'
+              : 'text-white/70 bg-black/40 opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100 group-focus:opacity-100 group-focus:scale-100'}
           `}
           aria-label={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
         >
@@ -92,9 +95,9 @@ export default function VideoCard({ channel, onSelect, isFavorite, onToggleFavor
         </button>
       </div>
 
-      <div className={`${tvMode ? 'p-4' : 'p-3.5'}`}>
+      <div className={`${tvMode ? 'px-4 pt-3.5 pb-1' : 'px-3.5 pt-3 pb-0.5'}`}>
         <h3
-          className={`font-semibold text-[var(--text-primary)] truncate ${tvMode ? 'text-base' : 'text-sm'}`}
+          className={`font-semibold text-[var(--text-primary)] truncate leading-snug ${tvMode ? 'text-base' : 'text-[13px]'}`}
           title={displayName}
         >
           {displayName}

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Hls from 'hls.js';
 import { Capacitor } from '@capacitor/core';
-import { X, AlertCircle, Loader2, Tv, Download, Square, PictureInPicture2, Cast, ChevronRight } from 'lucide-react';
+import { X, AlertCircle, Loader2, Tv, Download, Square, PictureInPicture2, Cast, ChevronRight, Radio } from 'lucide-react';
 import { getChannelLogoUrl } from '../services/iptvService';
 import { fetchChannelEpg, getCurrentProgram, getNextProgram, getProgramProgress, formatTime } from '../services/epgService';
 import ChromecastNative from '../plugins/ChromecastPlugin';
@@ -286,11 +286,10 @@ export default function VideoPlayer({ channel, onClose, isOpen, tvMode = false }
   const displayName    = channel?.displayName || channel?.name;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-black">
-      {/* Barre supérieure */}
-      <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between gap-3 px-4 py-3 bg-gradient-to-b from-black/90 to-transparent backdrop-blur-md">
+    <div className="fixed inset-0 z-50 flex flex-col bg-black animate-fade-in">
+      <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between gap-3 px-4 py-3 bg-gradient-to-b from-black/80 via-black/40 to-transparent">
         <div className="flex items-center gap-3 min-w-0 flex-1">
-          <div className="w-11 h-11 rounded-xl overflow-hidden bg-[var(--bg-card)] border border-[var(--border)] flex items-center justify-center shrink-0 shadow-lg">
+          <div className="w-10 h-10 rounded-xl overflow-hidden bg-white/10 border border-white/10 flex items-center justify-center shrink-0 backdrop-blur-sm">
             {channelLogoUrl && (
               <img
                 src={channelLogoUrl}
@@ -299,14 +298,14 @@ export default function VideoPlayer({ channel, onClose, isOpen, tvMode = false }
                 onError={(e) => { e.target.style.display = 'none'; e.target.nextElementSibling?.classList.remove('hidden'); }}
               />
             )}
-            <Tv size={22} className={`text-[var(--text-muted)] ${channelLogoUrl ? 'hidden' : ''}`} />
+            <Tv size={20} className={`text-white/50 ${channelLogoUrl ? 'hidden' : ''}`} />
           </div>
           <div className="min-w-0">
-            <h3 className={`text-white font-semibold truncate leading-tight ${tvMode ? 'text-xl' : 'text-lg'}`}>
+            <h3 className={`text-white font-semibold truncate leading-tight ${tvMode ? 'text-xl' : 'text-base'}`}>
               {displayName}
             </h3>
             {isCasting && (
-              <p className="text-blue-400 text-xs font-medium flex items-center gap-1">
+              <p className="text-blue-400 text-xs font-medium flex items-center gap-1 mt-0.5">
                 <Cast size={11} /> Diffusion sur Chromecast…
               </p>
             )}

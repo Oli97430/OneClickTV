@@ -14,7 +14,7 @@ const CATEGORIES = [
 // Séparé du live — section VOD
 export const VOD_ENTRY = { id: 'vod', label: 'Films & Séries', icon: Film };
 
-const LOGOS_PER_CATEGORY = 4;
+const LOGOS_PER_CATEGORY = 3;
 
 function CategoryLogos({ channels }) {
   if (!channels || channels.length === 0) return null;
@@ -113,21 +113,24 @@ export default function Sidebar({
           fixed inset-y-0 left-0 z-40
           bg-[var(--bg-elevated)] border-r border-[var(--border)]
           flex flex-col shadow-[var(--shadow-lg)]
-          transform transition-transform duration-300 ease-out
+          transform transition-all duration-300 ease-out
           ${tvMode ? 'w-80' : 'w-72 lg:static lg:shadow-none lg:transform-none'}
           ${isOpen ? 'translate-x-0' : tvMode ? '-translate-x-full' : '-translate-x-full lg:translate-x-0'}
         `}
       >
-        <div className="py-6 px-5 border-b border-[var(--border)] flex flex-col items-center gap-3">
+        <div className="py-5 px-5 border-b border-[var(--border)] flex items-center gap-3.5">
           <img
             src={`${import.meta.env.BASE_URL}logo.jpg`}
             alt="OneClickTV"
-            className="w-28 h-28 rounded-2xl object-contain shadow-xl"
+            className="w-12 h-12 rounded-xl object-contain shadow-lg ring-1 ring-[var(--border)]"
           />
-          <span className="text-xl font-bold text-[var(--text-primary)] tracking-tight">OneClickTV</span>
+          <div className="min-w-0">
+            <span className="text-lg font-bold text-[var(--text-primary)] tracking-tight block">OneClickTV</span>
+            <span className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-widest">TV en direct</span>
+          </div>
         </div>
-        <nav className="flex-1 overflow-y-auto p-3" onKeyDown={handleNavKeyDown}>
-          <ul className="space-y-1.5">
+        <nav className="flex-1 overflow-y-auto p-2.5" onKeyDown={handleNavKeyDown}>
+          <ul className="space-y-1">
             {/* Chaînes live */}
             {CATEGORIES.map((cat) => {
               const Icon = cat.icon;
@@ -142,10 +145,10 @@ export default function Sidebar({
                     data-sidebar-btn="true"
                     onClick={() => onCategoryChange(cat.id)}
                     className={`
-                      w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-left
+                      w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left
                       transition-all duration-200 focus:outline-none
                       ${isSelected
-                        ? 'bg-[var(--accent-muted)] text-[var(--accent)] border border-[var(--accent)]/30 shadow-sm'
+                        ? 'bg-[var(--accent-muted)] text-[var(--accent)] border border-[var(--accent)]/25 shadow-sm'
                         : 'text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] border border-transparent'}
                     `}
                   >
@@ -164,26 +167,24 @@ export default function Sidebar({
               );
             })}
 
-            {/* Séparateur */}
-            <li><div className="h-px bg-[var(--border)] mx-2 my-1" /></li>
+            <li><div className="h-px bg-[var(--border)] mx-2 my-1.5" /></li>
 
-            {/* VOD en bas */}
             <li>
               <button
                 type="button"
                 data-sidebar-btn="true"
                 onClick={() => { onVodClick?.(); onClose?.(); }}
                 className={`
-                  w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-left
+                  w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left
                   transition-all duration-200 focus:outline-none
                   ${vodActive
-                    ? 'bg-orange-500/15 text-orange-400 border border-orange-500/30 shadow-sm'
+                    ? 'bg-orange-500/15 text-orange-400 border border-orange-500/25 shadow-sm'
                     : 'text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] border border-transparent'}
                 `}
               >
                 <Film size={20} className="shrink-0 opacity-90" />
                 <span className="flex-1 truncate min-w-0 font-medium">{VOD_ENTRY.label}</span>
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-orange-500/20 text-orange-400 uppercase tracking-wide">VOD</span>
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-orange-500/20 text-orange-400 uppercase tracking-wider">VOD</span>
               </button>
             </li>
           </ul>

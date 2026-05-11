@@ -17,8 +17,8 @@ export default function VodCard({ item, onPlay, tvMode = false }) {
       className="
         group relative rounded-2xl overflow-hidden cursor-pointer
         bg-[var(--bg-card)] border border-[var(--border)]
-        hover:border-[var(--accent)]/40 hover:shadow-[var(--shadow-lg)] hover:shadow-[var(--accent)]/5
-        focus:outline-none active:scale-[0.98]
+        hover:border-[var(--accent)]/30 hover:shadow-[var(--shadow-lg)] hover:shadow-[var(--accent)]/5
+        focus:outline-none active:scale-[0.97]
         transition-all duration-200 flex flex-col
       "
     >
@@ -40,8 +40,8 @@ export default function VodCard({ item, onPlay, tvMode = false }) {
         </div>
 
         {/* Overlay Play */}
-        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 group-focus:bg-black/30 transition-all duration-200 flex items-center justify-center">
-          <div className="opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity duration-200 bg-[var(--accent)] rounded-full p-3 shadow-xl">
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 group-focus:bg-black/25 transition-all duration-300 flex items-center justify-center">
+          <div className="opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-all duration-300 scale-75 group-hover:scale-100 group-focus:scale-100 bg-[var(--accent)]/90 rounded-full p-3 shadow-xl backdrop-blur-sm">
             {isFranceTv
               ? <ExternalLink size={tvMode ? 28 : 22} className="text-white" />
               : <Play size={tvMode ? 28 : 22} className="text-white" fill="currentColor" />

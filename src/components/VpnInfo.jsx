@@ -12,8 +12,8 @@ export default function VpnInfo({ onClose, isOpen }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-      <div className="bg-[var(--bg-elevated)] border border-[var(--border)] rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-[var(--shadow-lg)]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in">
+      <div className="bg-[var(--bg-elevated)] border border-[var(--border)] rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-[var(--shadow-lg)] animate-fade-in-up">
         <div className="sticky top-0 flex items-center justify-between p-5 border-b border-[var(--border)] bg-[var(--bg-elevated)]/95 backdrop-blur-sm z-10">
           <h2 className="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2.5">
             <span className="p-2 rounded-xl bg-emerald-500/20">
