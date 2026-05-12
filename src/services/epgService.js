@@ -1,22 +1,39 @@
 const EPG_BASE = 'https://epg.pw/api/epg.js';
 const CACHE_TTL = 20 * 60 * 1000; // 20 minutes
 
-// Cache mémoire : tvgId → { ts, data }
+// Cache mémoire : tvgId -> { ts, data }
 const cache = new Map();
 
-// File d'attente pour limiter les requêtes simultanées
+// ─── Batch queue : accumule les demandes et les envoie par lots ─────────────
+let batchQueue = [];
+let batchTimer = null;
+const BATCH_DELAY = 150; // ms — attend un peu pour grouper les requêtes proches
+const MAX_CONCURRENT = 4;
 let activeRequests = 0;
-const MAX_CONCURRENT = 3;
-const queue = [];
+const fetchQueue = [];
 
-function drainQueue() {
-  while (queue.length > 0 && activeRequests < MAX_CONCURRENT) {
-    const task = queue.shift();
+function scheduleBatch() {
+  if (batchTimer) return;
+  batchTimer = setTimeout(flushBatch, BATCH_DELAY);
+}
+
+function flushBatch() {
+  batchTimer = null;
+  const pending = batchQueue.splice(0);
+  for (const item of pending) {
+    fetchQueue.push(item);
+  }
+  drainFetchQueue();
+}
+
+function drainFetchQueue() {
+  while (fetchQueue.length > 0 && activeRequests < MAX_CONCURRENT) {
+    const task = fetchQueue.shift();
     activeRequests++;
     doFetch(task.tvgId)
       .then(task.resolve)
       .catch(() => task.resolve(null))
-      .finally(() => { activeRequests--; drainQueue(); });
+      .finally(() => { activeRequests--; drainFetchQueue(); });
   }
 }
 
@@ -35,14 +52,14 @@ export function fetchChannelEpg(tvgId) {
   if (hit && Date.now() - hit.ts < CACHE_TTL) return Promise.resolve(hit.data);
 
   return new Promise((resolve) => {
-    queue.push({
+    batchQueue.push({
       tvgId,
       resolve: (data) => {
         if (data) cache.set(tvgId, { ts: Date.now(), data });
         resolve(data);
       },
     });
-    drainQueue();
+    scheduleBatch();
   });
 }
 
@@ -74,4 +91,10 @@ export function getProgramProgress(program) {
 export function formatTime(timeStr) {
   if (!timeStr) return '';
   return new Date(timeStr).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+}
+
+/** Retourne les minutes avant le début d'un programme */
+export function minutesUntil(program) {
+  if (!program) return Infinity;
+  return Math.max(0, Math.round((new Date(program.start).getTime() - Date.now()) / 60000));
 }

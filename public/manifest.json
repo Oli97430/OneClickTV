@@ -1,0 +1,14 @@
+{
+  "name": "OneClickTV",
+  "short_name": "OneClickTV",
+  "description": "Chaînes TV francophones en direct + VOD Arte",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0c",
+  "theme_color": "#e11d48",
+  "orientation": "any",
+  "categories": ["entertainment", "video"],
+  "icons": [
+    { "src": "logo.jpg", "sizes": "512x512", "type": "image/jpeg", "purpose": "any" }
+  ]
+}

@@ -1,16 +1,52 @@
+import { useRef, useCallback } from 'react';
 import { Heart, Clock, Play } from 'lucide-react';
 import { getChannelLogoUrl, getChannelFallbackLogoUrl } from '../services/iptvService';
+import { useI18n } from '../i18n';
 import EpgBadge from './EpgBadge';
 
-export default function VideoCard({ channel, onSelect, isFavorite, onToggleFavorite, tvMode = false, index = 0 }) {
+export default function VideoCard({
+  channel, onSelect, isFavorite, onToggleFavorite,
+  tvMode = false, index = 0,
+  draggable = false, onReorder,
+}) {
+  const { t } = useI18n();
   const displayName = channel.displayName || channel.name;
   const logoUrl = getChannelLogoUrl(channel.tvgId, channel.name, channel.logo);
   const fallbackUrl = getChannelFallbackLogoUrl(displayName);
+  const dragIdxRef = useRef(null);
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') { e.preventDefault(); onSelect(channel); }
     if (e.key === ' ')     { e.preventDefault(); onToggleFavorite(channel); }
   };
+
+  // Drag-drop reorder (#13)
+  const handleDragStart = useCallback((e) => {
+    if (!draggable) return;
+    dragIdxRef.current = index;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(index));
+    e.currentTarget.style.opacity = '0.5';
+  }, [draggable, index]);
+
+  const handleDragEnd = useCallback((e) => {
+    e.currentTarget.style.opacity = '1';
+  }, []);
+
+  const handleDragOver = useCallback((e) => {
+    if (!draggable) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  }, [draggable]);
+
+  const handleDrop = useCallback((e) => {
+    if (!draggable || !onReorder) return;
+    e.preventDefault();
+    const fromIdx = parseInt(e.dataTransfer.getData('text/plain'), 10);
+    if (!isNaN(fromIdx) && fromIdx !== index) {
+      onReorder(fromIdx, index);
+    }
+  }, [draggable, onReorder, index]);
 
   return (
     <article
@@ -18,8 +54,13 @@ export default function VideoCard({ channel, onSelect, isFavorite, onToggleFavor
       data-card="true"
       onKeyDown={handleKeyDown}
       onClick={() => onSelect(channel)}
+      draggable={draggable}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
       style={{ animationDelay: `${Math.min(index * 30, 600)}ms` }}
-      className="
+      className={`
         group relative rounded-2xl overflow-hidden
         bg-[var(--bg-card)] border border-[var(--border)]
         hover:border-[var(--accent)]/30 hover:shadow-[var(--shadow-lg)] hover:shadow-[var(--accent)]/5
@@ -27,8 +68,9 @@ export default function VideoCard({ channel, onSelect, isFavorite, onToggleFavor
         transition-all duration-200 cursor-pointer
         flex flex-col
         focus:outline-none
-        animate-fade-in-up
-      "
+        animate-fade-in-up card-virtual
+        ${draggable ? 'cursor-grab active:cursor-grabbing' : ''}
+      `}
     >
       <div className={`bg-[var(--bg-base)] flex items-center justify-center relative overflow-hidden ${tvMode ? 'aspect-[4/3]' : 'aspect-video'}`}>
         {logoUrl ? (
@@ -73,7 +115,7 @@ export default function VideoCard({ channel, onSelect, isFavorite, onToggleFavor
         {channel.not247 && (
           <span
             className="absolute top-2 left-2 flex items-center px-1.5 py-1 rounded-md bg-black/60 text-sky-400 backdrop-blur-sm"
-            title="Pas disponible 24h/24"
+            title={t('not247')}
           >
             <Clock size={10} />
           </span>
@@ -89,7 +131,7 @@ export default function VideoCard({ channel, onSelect, isFavorite, onToggleFavor
               ? 'text-rose-400 bg-black/60 opacity-100 scale-100'
               : 'text-white/70 bg-black/40 opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100 group-focus:opacity-100 group-focus:scale-100'}
           `}
-          aria-label={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+          aria-label={isFavorite ? t('removeFavorite') : t('addFavorite')}
         >
           <Heart size={tvMode ? 16 : 14} fill={isFavorite ? 'currentColor' : 'none'} />
         </button>

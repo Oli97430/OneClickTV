@@ -47,7 +47,7 @@ function channelScore(name, url) {
   return isHls ? 2 : 0;
 }
 
-/** Déduplique les chaînes par nom normalisé, en gardant celle avec le meilleur score */
+/** Déduplique les chaînes par nom normalisé, en gardant celle avec le meilleur score + URLs alternatives pour fallback */
 function deduplicateChannels(channels) {
   const byKey = new Map();
   for (const ch of channels) {
@@ -57,8 +57,17 @@ function deduplicateChannels(channels) {
       .replace(/\s*\[[^\]]*\]\s*/g, '')
       .trim();
     const existing = byKey.get(key);
-    if (!existing || channelScore(ch.name, ch.url) > channelScore(existing.name, existing.url)) {
-      byKey.set(key, { ...ch, name: ch.name.trim() });
+    if (!existing) {
+      byKey.set(key, { ...ch, name: ch.name.trim(), altUrls: [] });
+    } else {
+      // Keep the best as primary, store alternatives
+      if (channelScore(ch.name, ch.url) > channelScore(existing.name, existing.url)) {
+        existing.altUrls.push(existing.url);
+        existing.url = ch.url;
+        existing.name = ch.name.trim();
+      } else {
+        existing.altUrls.push(ch.url);
+      }
     }
   }
   return Array.from(byKey.values());
@@ -137,6 +146,10 @@ export async function fetchFrenchChannels(forceRefresh = false) {
   }
 
   let result = deduplicateChannels(channels);
+
+  // Filtrer les chaînes non-francophones (versions étrangères de chaînes multilingues)
+  const NON_FR_PATTERN = /\b(arabic|english|español|german|italian|portuguese|russian|turkish|persian|chinese|japanese|korean|hindi|albanian|bosnian|georgian|hungarian|polish|romanian|serbian|ukrainian)\b/i;
+  result = result.filter(ch => !NON_FR_PATTERN.test(ch.name));
 
   // Enrichir avec displayName et flags
   result = result.map(ch => ({

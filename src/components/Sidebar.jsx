@@ -1,18 +1,20 @@
-import { Tv, Newspaper, Trophy, Music, LayoutGrid, Heart, History, Film } from 'lucide-react';
+import { useState } from 'react';
+import { Tv, Newspaper, Trophy, Music, LayoutGrid, Heart, History, Film, BarChart3, Globe, ChevronDown, Shield } from 'lucide-react';
 import { getChannelLogoUrl, getChannelFallbackLogoUrl } from '../services/iptvService';
+import { getMonthlyStats, formatWatchTime } from '../services/statsService';
+import { useI18n, LANGUAGES } from '../i18n';
 
 const CATEGORIES = [
-  { id: 'all',         label: 'Toutes',     icon: LayoutGrid },
-  { id: 'favoris',    label: 'Favoris',     icon: Heart      },
-  { id: 'recents',    label: 'Récents',     icon: History    },
-  { id: 'Actualités', label: 'Actualités',  icon: Newspaper  },
-  { id: 'Sport',      label: 'Sport',       icon: Trophy     },
-  { id: 'Musique',    label: 'Musique',     icon: Music      },
-  { id: 'Généraliste',label: 'Généraliste', icon: Tv         },
+  { id: 'all',         labelKey: 'all',       icon: LayoutGrid },
+  { id: 'favoris',     labelKey: 'favorites',  icon: Heart      },
+  { id: 'recents',     labelKey: 'recents',    icon: History    },
+  { id: 'Actualités',  labelKey: 'news',       icon: Newspaper  },
+  { id: 'Sport',       labelKey: 'sport',      icon: Trophy     },
+  { id: 'Musique',     labelKey: 'music',      icon: Music      },
+  { id: 'Généraliste', labelKey: 'general',    icon: Tv         },
 ];
 
-// Séparé du live — section VOD
-export const VOD_ENTRY = { id: 'vod', label: 'Films & Séries', icon: Film };
+export const VOD_ENTRY = { id: 'vod', labelKey: 'filmsAndSeries', icon: Film };
 
 const LOGOS_PER_CATEGORY = 3;
 
@@ -57,12 +59,83 @@ function CategoryLogos({ channels }) {
   );
 }
 
+// ─── Stats summary widget ────────────────────────────────────────────────────
+function StatsWidget() {
+  const { t } = useI18n();
+  const stats = getMonthlyStats();
+  if (stats.totalSeconds < 60) return null;
+
+  return (
+    <div className="mx-2.5 mb-2 p-3 rounded-xl bg-[var(--bg-card)] border border-[var(--border)]">
+      <div className="flex items-center gap-2 mb-2">
+        <BarChart3 size={14} className="text-[var(--accent)]" />
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+          {t('watchTime')} &middot; {t('thisMonth')}
+        </span>
+      </div>
+      <p className="text-lg font-bold text-[var(--text-primary)] tabular-nums">{stats.totalFormatted}</p>
+      {stats.topChannels.length > 0 && (
+        <div className="mt-2 space-y-1">
+          {stats.topChannels.slice(0, 3).map((ch) => (
+            <div key={ch.id} className="flex items-center justify-between text-[10px]">
+              <span className="text-[var(--text-secondary)] truncate mr-2">{ch.id}</span>
+              <span className="text-[var(--text-muted)] tabular-nums shrink-0">{ch.formatted}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Language selector ───────────────────────────────────────────────────────
+function LanguageSelector() {
+  const { lang, setLang, t } = useI18n();
+  const [open, setOpen] = useState(false);
+  const current = LANGUAGES.find((l) => l.code === lang) || LANGUAGES[0];
+
+  return (
+    <div className="relative mx-2.5 mb-2">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--border-hover)] transition-all text-left"
+      >
+        <Globe size={16} className="text-[var(--text-muted)] shrink-0" />
+        <span className="text-sm font-medium text-[var(--text-secondary)] flex-1">{current.flag} {current.label}</span>
+        <ChevronDown size={14} className={`text-[var(--text-muted)] transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute bottom-full left-0 right-0 mb-1 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl shadow-[var(--shadow-lg)] overflow-hidden z-50 animate-fade-in">
+          {LANGUAGES.map((l) => (
+            <button
+              key={l.code}
+              type="button"
+              onClick={() => { setLang(l.code); setOpen(false); }}
+              className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left transition-colors ${
+                lang === l.code
+                  ? 'bg-[var(--accent-muted)] text-[var(--accent)] font-semibold'
+                  : 'text-[var(--text-secondary)] hover:bg-[var(--bg-card)]'
+              }`}
+            >
+              <span>{l.flag}</span>
+              <span>{l.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Sidebar({
   category, onCategoryChange, onVpnClick,
   channels = [], favorites = [], recents = [],
   isOpen, onClose, onFocusGrid, tvMode = false,
   onVodClick, vodActive = false,
 }) {
+  const { t } = useI18n();
+
   const byCategory = {};
   for (const ch of channels) {
     if (ch.category && ch.category !== 'all') {
@@ -83,7 +156,6 @@ export default function Sidebar({
     return null;
   };
 
-  // Navigation flèches haut/bas dans la liste de catégories
   const handleNavKeyDown = (e) => {
     const btns = Array.from(e.currentTarget.querySelectorAll('[data-sidebar-btn]'));
     const idx = btns.indexOf(document.activeElement);
@@ -126,12 +198,12 @@ export default function Sidebar({
           />
           <div className="min-w-0">
             <span className="text-lg font-bold text-[var(--text-primary)] tracking-tight block">OneClickTV</span>
-            <span className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-widest">TV en direct</span>
+            <span className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-widest">{t('liveTv')}</span>
           </div>
         </div>
+
         <nav className="flex-1 overflow-y-auto p-2.5" onKeyDown={handleNavKeyDown}>
           <ul className="space-y-1">
-            {/* Chaînes live */}
             {CATEGORIES.map((cat) => {
               const Icon = cat.icon;
               const isSelected = !vodActive && category === cat.id;
@@ -153,7 +225,7 @@ export default function Sidebar({
                     `}
                   >
                     <Icon size={20} className="shrink-0 opacity-90" />
-                    <span className="flex-1 truncate min-w-0 font-medium">{cat.label}</span>
+                    <span className="flex-1 truncate min-w-0 font-medium">{t(cat.labelKey)}</span>
                     {isFavOrRecent
                       ? count ? (
                           <span className={`text-xs px-1.5 py-0.5 rounded-md font-semibold shrink-0 tabular-nums ${isSelected ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'bg-[var(--bg-card)] text-[var(--text-muted)]'}`}>
@@ -183,12 +255,33 @@ export default function Sidebar({
                 `}
               >
                 <Film size={20} className="shrink-0 opacity-90" />
-                <span className="flex-1 truncate min-w-0 font-medium">{VOD_ENTRY.label}</span>
+                <span className="flex-1 truncate min-w-0 font-medium">{t(VOD_ENTRY.labelKey)}</span>
                 <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-orange-500/20 text-orange-400 uppercase tracking-wider">VOD</span>
+              </button>
+            </li>
+
+            <li><div className="h-px bg-[var(--border)] mx-2 my-1.5" /></li>
+
+            {/* VPN info button */}
+            <li>
+              <button
+                type="button"
+                data-sidebar-btn="true"
+                onClick={onVpnClick}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] border border-transparent transition-all duration-200 focus:outline-none"
+              >
+                <Shield size={20} className="shrink-0 opacity-90" />
+                <span className="flex-1 truncate min-w-0 font-medium">VPN & Geo</span>
               </button>
             </li>
           </ul>
         </nav>
+
+        {/* Bottom section — stats + language */}
+        <div className="border-t border-[var(--border)] pt-2 pb-2 space-y-1.5 shrink-0">
+          <StatsWidget />
+          <LanguageSelector />
+        </div>
       </aside>
     </>
   );

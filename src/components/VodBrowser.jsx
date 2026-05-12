@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Loader2, RefreshCw, ExternalLink, Film, X } from 'lucide-react';
 import VodCard from './VodCard';
+import { useI18n } from '../i18n';
 import {
   fetchArteVideos, resolveArteStream, fetchArteProgramMeta,
   ARTE_CATEGORIES, FRANCETV_CHANNELS,
@@ -8,12 +9,13 @@ import {
 
 // ─── Onglets sources ──────────────────────────────────────────────────────────
 const SOURCES = [
-  { id: 'arte',     label: 'Arte'      },
-  { id: 'francetv', label: 'France TV' },
+  { id: 'arte',     labelKey: 'arte'     },
+  { id: 'francetv', labelKey: 'franceTv' },
 ];
 
 // ─── Arte Browser ─────────────────────────────────────────────────────────────
 function ArteBrowser({ onPlay, tvMode, gridKeyDown, gridRef }) {
+  const { t } = useI18n();
   const [catId, setCatId]     = useState(ARTE_CATEGORIES[0].id);
   const [items, setItems]     = useState([]);
   const [loading, setLoading] = useState(false);
@@ -26,11 +28,11 @@ function ArteBrowser({ onPlay, tvMode, gridKeyDown, gridRef }) {
       const { items: newItems } = await fetchArteVideos(cId);
       setItems(newItems);
     } catch (e) {
-      setError('Erreur de chargement Arte. Vérifiez votre connexion.');
+      setError(t('arteLoadError'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => { load(catId); }, [catId]);
 
@@ -79,7 +81,7 @@ function ArteBrowser({ onPlay, tvMode, gridKeyDown, gridRef }) {
             onClick={() => load(catId)}
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-sm font-medium transition-all"
           >
-            <RefreshCw size={14} /> Réessayer
+            <RefreshCw size={14} /> {t('retry')}
           </button>
         </div>
       )}
@@ -89,8 +91,9 @@ function ArteBrowser({ onPlay, tvMode, gridKeyDown, gridRef }) {
 
 // ─── France TV Browser ────────────────────────────────────────────────────────
 function FranceTvBrowser({ tvMode }) {
+  const { t } = useI18n();
+
   const openReplay = (url) => {
-    // Capacitor InAppBrowser si disponible, sinon nouvel onglet
     if (window?.Capacitor?.isNativePlatform?.()) {
       import('@capacitor/browser').then(({ Browser }) => {
         Browser.open({ url });
@@ -103,7 +106,7 @@ function FranceTvBrowser({ tvMode }) {
   return (
     <div className="flex flex-col gap-4">
       <p className="text-[var(--text-muted)] text-sm">
-        France TV ne propose pas d'API catalogue publique. Accédez directement au replay officiel.
+        {t('franceTvNote')}
       </p>
       <div className={`grid gap-3 ${tvMode ? 'grid-cols-2 lg:grid-cols-3' : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-3'}`}>
         {FRANCETV_CHANNELS.map((ch) => (
@@ -125,7 +128,7 @@ function FranceTvBrowser({ tvMode }) {
               </div>
               <div className="min-w-0">
                 <p className="font-semibold text-[var(--text-primary)] text-sm truncate">{ch.label}</p>
-                <p className="text-[var(--text-muted)] text-xs">Replay</p>
+                <p className="text-[var(--text-muted)] text-xs">{t('replay')}</p>
               </div>
             </div>
             <ExternalLink size={16} className="text-[var(--text-muted)] group-hover:text-blue-400 shrink-0 transition-colors" />
@@ -138,6 +141,7 @@ function FranceTvBrowser({ tvMode }) {
 
 // ─── Lecteur VOD Arte ─────────────────────────────────────────────────────────
 function VodPlayerOverlay({ programId, onClose }) {
+  const { t } = useI18n();
   const [streamUrl, setStreamUrl] = useState(null);
   const [meta, setMeta]           = useState(null);
   const [loading, setLoading]     = useState(true);
@@ -149,12 +153,12 @@ function VodPlayerOverlay({ programId, onClose }) {
     setLoading(true);
     setError(null);
     fetchArteProgramMeta(programId).then((m) => {
-      if (!m) { setError('Programme introuvable.'); setLoading(false); return; }
+      if (!m) { setError(t('programNotFound')); setLoading(false); return; }
       setMeta(m);
-      if (!m.streamUrl) { setError('Flux indisponible ou géo-bloqué.'); setLoading(false); return; }
+      if (!m.streamUrl) { setError(t('streamGeoBlocked')); setLoading(false); return; }
       setStreamUrl(m.streamUrl);
-    }).catch(() => { setError('Erreur de chargement.'); setLoading(false); });
-  }, [programId]);
+    }).catch(() => { setError(t('loadError')); setLoading(false); });
+  }, [programId, t]);
 
   useEffect(() => {
     if (!streamUrl || !videoRef.current) return;
@@ -168,17 +172,17 @@ function VodPlayerOverlay({ programId, onClose }) {
           hls.attachMedia(videoRef.current);
           hls.on(Hls.Events.MANIFEST_PARSED, () => setLoading(false));
           hls.on(Hls.Events.ERROR, (_, d) => {
-            if (d.fatal) { setLoading(false); setError('Flux indisponible.'); hls.destroy(); }
+            if (d.fatal) { setLoading(false); setError(t('streamUnavailable')); hls.destroy(); }
           });
         } else if (videoRef.current.canPlayType('application/vnd.apple.mpegurl')) {
           videoRef.current.src = streamUrl;
           setLoading(false);
         }
-      } catch { setLoading(false); setError('Lecteur non disponible.'); }
+      } catch { setLoading(false); setError(t('playerUnavailable')); }
     };
     play();
     return () => { hlsRef.current?.destroy(); hlsRef.current = null; if (videoRef.current) videoRef.current.src = ''; };
-  }, [streamUrl]);
+  }, [streamUrl, t]);
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-black animate-fade-in">
@@ -196,13 +200,12 @@ function VodPlayerOverlay({ programId, onClose }) {
           type="button"
           onClick={onClose}
           className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all duration-200"
-          aria-label="Fermer"
+          aria-label={t('closePlayer')}
         >
           <X size={20} />
         </button>
       </div>
 
-      {/* Vidéo */}
       <div className="flex-1 relative">
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center bg-black">
@@ -212,8 +215,8 @@ function VodPlayerOverlay({ programId, onClose }) {
         {error && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black p-8 text-center">
             <p className="text-white text-lg font-semibold">{error}</p>
-            <p className="text-white/50 text-sm max-w-sm">Ce contenu est peut-être réservé aux résidents de France ou d'Allemagne.</p>
-            <button type="button" onClick={onClose} className="px-5 py-2.5 rounded-xl bg-white/10 text-white mt-2">Retour</button>
+            <p className="text-white/50 text-sm max-w-sm">{t('geoNote')}</p>
+            <button type="button" onClick={onClose} className="px-5 py-2.5 rounded-xl bg-white/10 text-white mt-2">{t('back')}</button>
           </div>
         )}
         <video
@@ -231,6 +234,7 @@ function VodPlayerOverlay({ programId, onClose }) {
 
 // ─── Composant principal ──────────────────────────────────────────────────────
 export default function VodBrowser({ tvMode = false }) {
+  const { t } = useI18n();
   const [source, setSource]         = useState('arte');
   const [playingId, setPlayingId]   = useState(null);
   const gridRef                     = useRef(null);
@@ -272,7 +276,6 @@ export default function VodBrowser({ tvMode = false }) {
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Onglets sources */}
       <div className="flex gap-2">
         {SOURCES.map((s) => (
           <button
@@ -285,12 +288,11 @@ export default function VodBrowser({ tvMode = false }) {
                 : 'bg-[var(--bg-card)] text-[var(--text-secondary)] border border-[var(--border)] hover:text-[var(--text-primary)]'
             }`}
           >
-            {s.label}
+            {t(s.labelKey)}
           </button>
         ))}
       </div>
 
-      {/* Contenu source */}
       {source === 'arte' && (
         <ArteBrowser
           onPlay={handlePlay}
@@ -301,7 +303,6 @@ export default function VodBrowser({ tvMode = false }) {
       )}
       {source === 'francetv' && <FranceTvBrowser tvMode={tvMode} />}
 
-      {/* Lecteur Arte */}
       {playingId && (
         <VodPlayerOverlay programId={playingId} onClose={() => setPlayingId(null)} />
       )}

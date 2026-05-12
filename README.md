@@ -9,22 +9,36 @@ OneClickTV est une application de bureau (Windows / macOS / Linux) et mobile (An
 ## Fonctionnalités
 
 ### Chaînes live
-- **Plus de 100 chaînes en direct** — Actualités, Sport, Musique, Généraliste
-- **Favoris & Récents** — Accès rapide aux chaînes préférées et dernièrement regardées
-- **Lecteur HLS intégré** — Lecture fluide des flux `.m3u8` via HLS.js
-- **EPG temps réel** — Programme en cours affiché sur chaque chaîne avec barre de progression
+- **98 chaînes francophones en direct** — Actualités, Sport, Musique, Généraliste (filtrage automatique des versions non-francophones)
+- **Favoris & Récents** — Accès rapide, réorganisation par glisser-déposer
+- **Lecteur HLS lazy** — Lecture fluide des flux `.m3u8` via HLS.js (chargé à la demande)
+- **Flux de secours** — Basculement automatique sur une URL alternative si le flux principal est indisponible
+- **EPG temps réel** — Programme en cours + notification cloche si le prochain programme démarre dans < 5 min
+- **Skeleton loading** — Cartes shimmer animées pendant le chargement de la playlist
 
 ### VOD
-- **Arte** — Catalogue complet (Cinéma, Documentaires, Séries, Concerts, Sciences…) avec lecteur HLS intégré
+- **Arte** — Catalogue complet via API v4 (Films, Séries, Documentaires, Concerts, Histoire, Sciences, Culture…)
 - **France TV** — Accès direct aux replays France 2, France 3, France 4, France 5, Franceinfo, La 1ère
+
+### Lecteur vidéo
+- **Mini-player** — Réduire en barre flottante pour continuer à naviguer
+- **Plein écran** — Touche `F` ou bouton dédié
+- **Raccourcis clavier** — `Espace` play/pause · `F` fullscreen · `M` muet · `Échap` minimiser · `↑↓` volume · `←→` avancer/reculer
+- **Chromecast** — Web Cast SDK + plugin natif Android
 
 ### Expérience TV / Box Android
 - **Mode TV** — Grille large, cartes plus grandes, sidebar en overlay
-- **Navigation D-pad complète** — Flèches directionnelles, Enter, Retour pour télécommande
-- **Chromecast natif Android** — Cast SDK intégré (plugin Capacitor natif), diffusion sur TV depuis l'app Android
+- **Navigation D-pad complète** — Flèches directionnelles, Enter pour télécommande
+- **Swipe** — Glissement gauche/droite pour changer de catégorie (mobile/tactile)
+- **Screensaver** — Écran de veille après 30 s d'inactivité (horloge + EPG + chaîne en cours)
 
 ### Général
-- **Thème clair / sombre**
+- **i18n 4 langues** — Français · English · Deutsch · Español
+- **Thème clair / sombre** — Transition fluide
+- **Statistiques de visionnage** — Temps de visionnage mensuel par chaîne (local, aucun serveur)
+- **PWA installable** — Service Worker cache-first, manifeste, icône, `theme-color`
+- **Glisser-déposer favoris** — Réorganiser l'ordre des chaînes favorites
+- **Virtual grid** — `content-visibility: auto` pour les performances sur les grandes listes
 - **Multi-plateforme** — Windows, macOS, Linux (Electron) et Android (Capacitor)
 - **100 % gratuit** — Aucun abonnement, aucune donnée collectée, aucune publicité
 
@@ -34,13 +48,17 @@ OneClickTV est une application de bureau (Windows / macOS / Linux) et mobile (An
 
 ### Application de bureau (Windows)
 
-Téléchargez le dernier installateur depuis le dossier `release/` ou les releases GitHub.
+Téléchargez le dernier installateur depuis les [Releases GitHub](https://github.com/Oli97430/OneClickTV/releases).
 
-- **Windows** : `OneClickTV Setup 1.0.0.exe` (installateur NSIS, 64-bit)
+- **Windows** : `OneClickTV Setup 1.2.0.exe` (installateur NSIS, 64-bit)
 
 ### Android
 
-Transférez `app-debug.apk` sur votre appareil (dossier `android/app/build/outputs/apk/debug/`) ou compilez depuis les sources.
+Téléchargez `OneClickTV-1.2.0.apk` depuis les [Releases GitHub](https://github.com/Oli97430/OneClickTV/releases) ou compilez depuis les sources.
+
+### Web (PWA)
+
+Ouvrez l'application dans Chrome/Edge et cliquez sur **Installer** dans la barre d'adresse pour l'utiliser hors-ligne.
 
 ---
 
@@ -81,7 +99,7 @@ npm run dev
 npm run build:desktop
 ```
 
-Génère `release/OneClickTV Setup 1.1.0.exe`.
+Génère `release/OneClickTV Setup 1.2.0.exe`.
 
 ### Compiler pour Android
 
@@ -108,7 +126,7 @@ npm run cap:android
 | React 19 | Interface utilisateur |
 | Vite 7 | Build tool & serveur de développement |
 | Tailwind CSS 4 | Styles |
-| HLS.js | Lecture des flux live et VOD M3U8 |
+| HLS.js | Lecture des flux live et VOD M3U8 (lazy import) |
 | Electron 33 | Application de bureau |
 | Capacitor 8 | Application Android |
 | Google Cast SDK 22 | Chromecast natif Android |
@@ -122,11 +140,11 @@ npm run cap:android
 
 | Source | Type | Notes |
 |---|---|---|
-| [iptv-org/iptv](https://github.com/iptv-org/iptv) | Chaînes live | Playlist `fr.m3u`, flux HLS publics |
+| [iptv-org/iptv](https://github.com/iptv-org/iptv) | Chaînes live | Playlist `fr.m3u`, flux HLS publics, filtrage francophone |
 | [Arte API v4](https://api.arte.tv/api/emac/v4/fr/web/pages/HOME/) | VOD | Catalogue Arte (France + Allemagne + DOM-TOM) |
 | [Arte Player API v2](https://api.arte.tv/api/player/v2/config/fr/) | VOD stream | Résolution HLS, accessible globalement |
 | [France TV](https://www.france.tv) | Replay | Liens directs vers les replays officiels |
-| [EPG.pw](https://epg.pw) | EPG | Guide des programmes temps réel |
+| [EPG.pw](https://epg.pw) | EPG | Guide des programmes temps réel, batch queue |
 
 ---
 
@@ -135,12 +153,13 @@ npm run cap:android
 - Les flux IPTV proviennent de sources publiques et appartiennent à leurs diffuseurs respectifs.
 - Le catalogue Arte est accessible depuis la France (métropole et DOM-TOM) et l'Allemagne.
 - Certains flux live peuvent être temporairement hors ligne selon les diffuseurs.
+- Les statistiques de visionnage sont stockées uniquement en local (`localStorage`), aucune donnée n'est envoyée.
 
 ---
 
 ## Auteur
 
-**Olivier Hoarau**
+**Olivier Hoarau**  
 ✉ [Tarraw974@gmail.com](mailto:Tarraw974@gmail.com)
 
 ---

@@ -1,11 +1,14 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Menu, Loader2, Sun, Moon, RefreshCw, Tv, Radio } from 'lucide-react';
+import { Menu, Sun, Moon, RefreshCw, Tv, Radio, Heart, History, Film } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import VideoCard from './components/VideoCard';
 import VideoPlayer from './components/VideoPlayer';
+import MiniPlayer from './components/MiniPlayer';
+import SkeletonCard from './components/SkeletonCard';
 import VpnInfo from './components/VpnInfo';
 import VodBrowser from './components/VodBrowser';
 import { fetchFrenchChannels } from './services/iptvService';
+import { useI18n } from './i18n';
 
 function loadFromStorage(key, fallback) {
   try {
@@ -15,12 +18,17 @@ function loadFromStorage(key, fallback) {
   }
 }
 
+const SWIPE_CATEGORIES = ['all', 'favoris', 'recents', 'Actualités', 'Sport', 'Musique', 'Généraliste'];
+const SKELETON_COUNT = 12;
+
 export default function App() {
+  const { t } = useI18n();
   const [channels, setChannels]         = useState([]);
   const [loading, setLoading]           = useState(true);
   const [error, setError]               = useState(null);
   const [category, setCategory]         = useState('all');
   const [selectedChannel, setSelectedChannel] = useState(null);
+  const [playerMode, setPlayerMode]     = useState('closed');
   const [sidebarOpen, setSidebarOpen]   = useState(false);
   const [vpnInfoOpen, setVpnInfoOpen]   = useState(false);
   const [theme, setTheme]               = useState(() => loadFromStorage('theme', 'dark'));
@@ -31,6 +39,7 @@ export default function App() {
   const [vodActive, setVodActive]       = useState(false);
 
   const gridRef = useRef(null);
+  const touchStartRef = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -39,7 +48,6 @@ export default function App() {
 
   useEffect(() => {
     localStorage.setItem('tvMode', JSON.stringify(tvMode));
-    // En mode TV, on masque la sidebar par défaut (même sur grand écran)
     if (tvMode) setSidebarOpen(false);
   }, [tvMode]);
 
@@ -48,7 +56,7 @@ export default function App() {
     setError(null);
     fetchFrenchChannels(loadKey > 0)
       .then((data) => setChannels(data))
-      .catch((err) => setError(err.message || 'Erreur lors du chargement des chaînes'))
+      .catch((err) => setError(err.message || t('errorLoading')))
       .finally(() => setLoading(false));
   }, [loadKey]);
 
@@ -61,14 +69,32 @@ export default function App() {
     });
   }, []);
 
+  const reorderFavorites = useCallback((fromIdx, toIdx) => {
+    setFavorites((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      localStorage.setItem('favorites', JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   const handleSelectChannel = useCallback((channel) => {
     setSelectedChannel(channel);
+    setPlayerMode('full');
     setRecents((prev) => {
       const without = prev.filter((c) => c.id !== channel.id);
       const next    = [channel, ...without].slice(0, 10);
       localStorage.setItem('recents', JSON.stringify(next));
       return next;
     });
+  }, []);
+
+  const handleMinimize = useCallback(() => setPlayerMode('mini'), []);
+  const handleExpandMini = useCallback(() => setPlayerMode('full'), []);
+  const handleClosePlayer = useCallback(() => {
+    setSelectedChannel(null);
+    setPlayerMode('closed');
   }, []);
 
   const focusFirstCard = useCallback(() => {
@@ -87,7 +113,28 @@ export default function App() {
     setSidebarOpen(false);
   }, []);
 
-  // Navigation D-pad dans la grille
+  // Swipe between categories (#6)
+  const handleTouchStart = useCallback((e) => {
+    touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  }, []);
+
+  const handleTouchEnd = useCallback((e) => {
+    const dx = e.changedTouches[0].clientX - touchStartRef.current.x;
+    const dy = e.changedTouches[0].clientY - touchStartRef.current.y;
+    if (Math.abs(dx) < 80 || Math.abs(dy) > Math.abs(dx)) return;
+    if (vodActive) return;
+
+    const idx = SWIPE_CATEGORIES.indexOf(category);
+    if (idx === -1) return;
+
+    if (dx < 0 && idx < SWIPE_CATEGORIES.length - 1) {
+      handleCategoryChange(SWIPE_CATEGORIES[idx + 1]);
+    } else if (dx > 0 && idx > 0) {
+      handleCategoryChange(SWIPE_CATEGORIES[idx - 1]);
+    }
+  }, [category, vodActive, handleCategoryChange]);
+
+  // D-pad navigation
   const handleGridKeyDown = useCallback((e) => {
     if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) return;
     const grid = gridRef.current;
@@ -120,23 +167,33 @@ export default function App() {
   const filteredChannels = useMemo(() => {
     if (category === 'favoris') return favorites;
     if (category === 'recents') return recents;
-
     if (category !== 'all' && category !== 'vpn') {
       return channels.filter((c) => c.category === category);
     }
     return channels;
   }, [channels, category, favorites, recents]);
 
-  const emptyMessage = () => {
-    if (category === 'favoris') return "Aucun favori pour l'instant. Cliquez sur ♥ pour en ajouter.";
-    if (category === 'recents') return 'Aucune chaîne récemment regardée.';
-    return 'Aucune chaîne disponible dans cette catégorie.';
+  // Contextual header text
+  const headerText = useMemo(() => {
+    if (vodActive) return t('filmsAndSeries');
+    if (loading || error) return '';
+    const n = filteredChannels.length;
+    if (category === 'favoris') return `${n} ${t('favorites').toLowerCase()}`;
+    if (category === 'recents') return `${n} ${t('recents').toLowerCase()}`;
+    return t('channelsLive', { count: n, s: n !== 1 ? 's' : '' });
+  }, [vodActive, loading, error, filteredChannels.length, category, t]);
+
+  const emptyState = () => {
+    if (category === 'favoris') return { icon: Heart, msg: t('noFavorites') };
+    if (category === 'recents') return { icon: History, msg: t('noRecents') };
+    return { icon: Tv, msg: t('noChannels') };
   };
 
-  // Grille responsive : mode TV = moins de colonnes, cartes plus grandes
   const gridCols = tvMode
     ? 'grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4'
     : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6';
+
+  const isDraggableFavorites = category === 'favoris';
 
   return (
     <div className="min-h-screen flex bg-[var(--bg-base)]">
@@ -155,7 +212,11 @@ export default function App() {
         vodActive={vodActive}
       />
 
-      <main className="flex-1 flex flex-col min-w-0">
+      <main
+        className="flex-1 flex flex-col min-w-0"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
         <header className={`sticky top-0 z-20 flex items-center gap-3 bg-[var(--bg-base)]/85 border-b border-[var(--border)] backdrop-blur-xl ${tvMode ? 'px-5 py-4' : 'px-4 py-3 lg:px-6 lg:py-3.5'}`}>
           <button
             type="button"
@@ -168,12 +229,11 @@ export default function App() {
 
           <div className="flex items-center gap-2.5 flex-1 min-w-0">
             <div className="hidden lg:flex items-center gap-2 text-[var(--text-muted)]">
-              <Radio size={16} className="text-[var(--accent)] animate-pulse" />
-              <span className="text-sm font-medium">
-                {!loading && !error && (
-                  <>{filteredChannels.length} chaîne{filteredChannels.length !== 1 ? 's' : ''} en direct</>
-                )}
-              </span>
+              {vodActive
+                ? <Film size={16} className="text-orange-400" />
+                : <Radio size={16} className="text-[var(--accent)] animate-pulse" />
+              }
+              <span className="text-sm font-medium">{headerText}</span>
             </div>
           </div>
 
@@ -186,18 +246,18 @@ export default function App() {
                   ? 'bg-[var(--accent)] text-white shadow-lg shadow-[var(--accent)]/25'
                   : 'bg-[var(--bg-card)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--border-hover)]'
               }`}
-              aria-label="Mode TV"
-              title={tvMode ? 'Désactiver le mode TV' : 'Activer le mode TV (box Android)'}
+              aria-label={t('tvMode')}
+              title={tvMode ? t('tvModeOn') : t('tvModeOff')}
             >
               <Tv size={tvMode ? 22 : 20} />
             </button>
 
             <button
               type="button"
-              onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+              onClick={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
               className="p-2.5 rounded-xl bg-[var(--bg-card)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--border-hover)] transition-all duration-200 shrink-0"
-              aria-label="Changer le thème"
-              title={theme === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre'}
+              aria-label={t('switchTheme')}
+              title={theme === 'dark' ? t('lightMode') : t('darkMode')}
             >
               {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
             </button>
@@ -205,12 +265,14 @@ export default function App() {
         </header>
 
         <div className={`flex-1 ${tvMode ? 'p-5 pb-12' : 'p-4 lg:p-6 lg:pb-10'}`}>
+          {/* Skeleton loading (#5) */}
           {loading && (
-            <div className="flex flex-col items-center justify-center py-28 gap-5 animate-fade-in">
-              <div className="rounded-2xl bg-[var(--bg-card)] p-7 shadow-[var(--shadow-lg)] border border-[var(--border)]">
-                <Loader2 className="text-[var(--accent)] animate-spin" size={40} />
+            <div className="animate-fade-in">
+              <div className={`grid gap-4 lg:gap-5 ${gridCols}`}>
+                {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
+                  <SkeletonCard key={i} tvMode={tvMode} />
+                ))}
               </div>
-              <p className="text-[var(--text-muted)] text-sm font-medium tracking-wide">Chargement des chaînes...</p>
             </div>
           )}
 
@@ -224,7 +286,7 @@ export default function App() {
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white font-medium transition-all duration-200 shadow-md shadow-[var(--accent)]/20"
                 >
                   <RefreshCw size={16} />
-                  Réessayer
+                  {t('retry')}
                 </button>
               </div>
             </div>
@@ -233,7 +295,15 @@ export default function App() {
           {vodActive && <VodBrowser tvMode={tvMode} />}
 
           {!vodActive && !loading && !error && (
-            <div className="animate-fade-in-up">
+            <div key={category} className="animate-fade-in-up">
+              {/* Drag hint for favorites */}
+              {isDraggableFavorites && filteredChannels.length > 1 && (
+                <p className="text-[var(--text-muted)] text-xs mb-3 flex items-center gap-1.5">
+                  <span className="inline-block w-4 h-0.5 bg-[var(--text-muted)]/40 rounded" />
+                  {t('dragToReorder')}
+                </p>
+              )}
+
               <div
                 ref={gridRef}
                 onKeyDown={handleGridKeyDown}
@@ -248,14 +318,21 @@ export default function App() {
                     onToggleFavorite={toggleFavorite}
                     tvMode={tvMode}
                     index={i}
+                    draggable={isDraggableFavorites}
+                    onReorder={isDraggableFavorites ? reorderFavorites : undefined}
                   />
                 ))}
               </div>
-              {filteredChannels.length === 0 && (
-                <div className="rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] py-20 text-center animate-fade-in">
-                  <p className="text-[var(--text-muted)] font-medium text-sm">{emptyMessage()}</p>
-                </div>
-              )}
+
+              {filteredChannels.length === 0 && (() => {
+                const { icon: EmptyIcon, msg } = emptyState();
+                return (
+                  <div className="rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] py-20 text-center animate-fade-in">
+                    <EmptyIcon size={40} className="mx-auto mb-4 text-[var(--text-muted)]/40" />
+                    <p className="text-[var(--text-muted)] font-medium text-sm">{msg}</p>
+                  </div>
+                );
+              })()}
             </div>
           )}
         </div>
@@ -263,10 +340,19 @@ export default function App() {
 
       <VideoPlayer
         channel={selectedChannel}
-        onClose={() => setSelectedChannel(null)}
-        isOpen={!!selectedChannel}
+        onClose={handleClosePlayer}
+        onMinimize={handleMinimize}
+        isOpen={playerMode === 'full'}
         tvMode={tvMode}
       />
+
+      {playerMode === 'mini' && selectedChannel && (
+        <MiniPlayer
+          channel={selectedChannel}
+          onExpand={handleExpandMini}
+          onClose={handleClosePlayer}
+        />
+      )}
 
       <VpnInfo isOpen={vpnInfoOpen} onClose={() => setVpnInfoOpen(false)} />
     </div>

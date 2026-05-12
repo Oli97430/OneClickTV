@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Thème sombre (défaut) */
+/* ─── Thème sombre (défaut) ──────────────────────────────────────────────── */
 :root,
 [data-theme="dark"] {
   --bg-base: #0a0a0c;
@@ -21,7 +21,7 @@
   --radius-lg: 16px;
 }
 
-/* Thème clair */
+/* ─── Thème clair ────────────────────────────────────────────────────────── */
 [data-theme="light"] {
   --bg-base: #f7f7f8;
   --bg-elevated: #ffffff;
@@ -39,6 +39,7 @@
   --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
+/* ─── Base ───────────────────────────────────────────────────────────────── */
 html {
   scroll-behavior: smooth;
 }
@@ -53,7 +54,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Scrollbar */
+/* ─── Scrollbar ──────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -69,13 +70,12 @@ body {
   background: #52525b;
 }
 
-/* Focus visible — ring épais pour navigation télécommande */
+/* ─── Focus visible — ring TV remote ────────────────────────────────────── */
 :focus-visible {
   outline: 3px solid var(--accent);
   outline-offset: 3px;
 }
 
-/* Carte chaîne focalisée via D-pad */
 [data-card]:focus-visible {
   outline: 3px solid var(--accent);
   outline-offset: 3px;
@@ -83,7 +83,6 @@ body {
   box-shadow: 0 0 0 6px var(--accent-muted), var(--shadow-lg) !important;
 }
 
-/* Bouton sidebar focalisé */
 [data-sidebar-btn]:focus-visible {
   outline: 3px solid var(--accent);
   outline-offset: 2px;
@@ -91,7 +90,7 @@ body {
   color: var(--accent) !important;
 }
 
-/* Animations d'entrée */
+/* ─── Animations ─────────────────────────────────────────────────────────── */
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(12px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -100,9 +99,47 @@ body {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes shimmer {
+  from { background-position: -200% 0; }
+  to   { background-position: 200% 0; }
+}
+
 .animate-fade-in-up {
   animation: fadeInUp .35s ease-out both;
 }
 .animate-fade-in {
   animation: fadeIn .3s ease-out both;
+}
+.animate-slide-in {
+  animation: slideIn .25s ease-out both;
+}
+
+/* ─── Virtual grid: content-visibility off-screen optimisation (#11) ───── */
+.card-virtual {
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 280px;
+}
+
+/* ─── Drag-drop feedback (#13) ───────────────────────────────────────────── */
+[draggable="true"] {
+  user-select: none;
+  -webkit-user-select: none;
+}
+[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+/* ─── Smooth theme transitions ───────────────────────────────────────────── */
+[data-theme] {
+  transition: background-color 0.3s ease, color 0.15s ease;
+}
+
+/* ─── Selection color ────────────────────────────────────────────────────── */
+::selection {
+  background: var(--accent);
+  color: white;
 }
