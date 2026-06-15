@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Background gradient -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:startColor="#1e1b4b"
+                android:endColor="#312e81"
+                android:angle="135" />
+            <corners android:radius="8dp" />
+        </shape>
+    </item>
+    <!-- Accent stripe -->
+    <item
+        android:left="0dp"
+        android:top="0dp"
+        android:right="280dp"
+        android:bottom="0dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#6366f1" />
+            <corners android:topLeftRadius="8dp" android:bottomLeftRadius="8dp" />
+        </shape>
+    </item>
+    <!-- App name text area (visual placeholder) -->
+    <item
+        android:left="48dp"
+        android:top="60dp"
+        android:right="48dp"
+        android:bottom="60dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#00000000" />
+        </shape>
+    </item>
+</layer-list>

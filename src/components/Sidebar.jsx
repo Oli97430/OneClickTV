@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Tv, Newspaper, Trophy, Music, LayoutGrid, Heart, History, Film, BarChart3, Globe, ChevronDown, Shield, Clapperboard, Baby, BookOpen } from 'lucide-react';
+import { Tv, Newspaper, Trophy, Music, LayoutGrid, Heart, History, Film, BarChart3, Globe, ChevronDown, Shield, Clapperboard, Baby, BookOpen, Radio, CalendarDays } from 'lucide-react';
 import { getChannelLogoUrl, getChannelFallbackLogoUrl } from '../services/iptvService';
 import { getMonthlyStats, formatWatchTime } from '../services/statsService';
 import { useI18n, LANGUAGES } from '../i18n';
@@ -136,6 +136,8 @@ export default function Sidebar({
   channels = [], favorites = [], recents = [],
   isOpen, onClose, onFocusGrid, tvMode = false,
   onVodClick, vodActive = false,
+  onRadioClick, radioActive = false,
+  onEpgClick, epgActive = false,
 }) {
   const { t } = useI18n();
 
@@ -244,6 +246,27 @@ export default function Sidebar({
 
             <li><div className="h-px bg-[var(--border)] mx-2 my-1.5" /></li>
 
+            {/* Radio */}
+            <li>
+              <button
+                type="button"
+                data-sidebar-btn="true"
+                onClick={() => { onRadioClick?.(); onClose?.(); }}
+                className={`
+                  w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left
+                  transition-all duration-200 focus:outline-none
+                  ${radioActive
+                    ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 shadow-sm'
+                    : 'text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] border border-transparent'}
+                `}
+              >
+                <Radio size={20} className="shrink-0 opacity-90" />
+                <span className="flex-1 truncate min-w-0 font-medium">{t('radio')}</span>
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 uppercase tracking-wider">FM</span>
+              </button>
+            </li>
+
+            {/* VOD */}
             <li>
               <button
                 type="button"
@@ -260,6 +283,26 @@ export default function Sidebar({
                 <Film size={20} className="shrink-0 opacity-90" />
                 <span className="flex-1 truncate min-w-0 font-medium">{t(VOD_ENTRY.labelKey)}</span>
                 <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-orange-500/20 text-orange-400 uppercase tracking-wider">VOD</span>
+              </button>
+            </li>
+
+            {/* EPG Guide */}
+            <li>
+              <button
+                type="button"
+                data-sidebar-btn="true"
+                onClick={() => { onEpgClick?.(); onClose?.(); }}
+                className={`
+                  w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left
+                  transition-all duration-200 focus:outline-none
+                  ${epgActive
+                    ? 'bg-sky-500/15 text-sky-400 border border-sky-500/25 shadow-sm'
+                    : 'text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] border border-transparent'}
+                `}
+              >
+                <CalendarDays size={20} className="shrink-0 opacity-90" />
+                <span className="flex-1 truncate min-w-0 font-medium">{t('epgGuide')}</span>
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-sky-500/20 text-sky-400 uppercase tracking-wider">EPG</span>
               </button>
             </li>
 

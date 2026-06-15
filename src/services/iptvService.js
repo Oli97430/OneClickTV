@@ -13,6 +13,7 @@ const EXTRA_CHANNELS = [
     logo: '',
     url: 'https://raw.githubusercontent.com/Sibprod/streams/main/ressources/dm/py/hls/cnews.m3u8',
     category: 'Actualités',
+    country: 'fr',
     geoBlocked: false,
     not247: false,
   },
@@ -49,6 +50,50 @@ const CATEGORY_MAP = {
   Shop: null,
   XXX: null,
 };
+
+export const COUNTRY_NAMES = {
+  fr: { flag: '\u{1F1EB}\u{1F1F7}', name: 'France' },
+  be: { flag: '\u{1F1E7}\u{1F1EA}', name: 'Belgique' },
+  ch: { flag: '\u{1F1E8}\u{1F1ED}', name: 'Suisse' },
+  ca: { flag: '\u{1F1E8}\u{1F1E6}', name: 'Canada' },
+  sn: { flag: '\u{1F1F8}\u{1F1F3}', name: 'Sénégal' },
+  ci: { flag: '\u{1F1E8}\u{1F1EE}', name: "Côte d'Ivoire" },
+  ma: { flag: '\u{1F1F2}\u{1F1E6}', name: 'Maroc' },
+  cm: { flag: '\u{1F1E8}\u{1F1F2}', name: 'Cameroun' },
+  dz: { flag: '\u{1F1E9}\u{1F1FF}', name: 'Algérie' },
+  tn: { flag: '\u{1F1F9}\u{1F1F3}', name: 'Tunisie' },
+  cd: { flag: '\u{1F1E8}\u{1F1E9}', name: 'RD Congo' },
+  cg: { flag: '\u{1F1E8}\u{1F1EC}', name: 'Congo' },
+  ml: { flag: '\u{1F1F2}\u{1F1F1}', name: 'Mali' },
+  bf: { flag: '\u{1F1E7}\u{1F1EB}', name: 'Burkina Faso' },
+  ga: { flag: '\u{1F1EC}\u{1F1E6}', name: 'Gabon' },
+  mg: { flag: '\u{1F1F2}\u{1F1EC}', name: 'Madagascar' },
+  ht: { flag: '\u{1F1ED}\u{1F1F9}', name: 'Haïti' },
+  lu: { flag: '\u{1F1F1}\u{1F1FA}', name: 'Luxembourg' },
+  mc: { flag: '\u{1F1F2}\u{1F1E8}', name: 'Monaco' },
+  us: { flag: '\u{1F1FA}\u{1F1F8}', name: 'USA' },
+  gb: { flag: '\u{1F1EC}\u{1F1E7}', name: 'UK' },
+  de: { flag: '\u{1F1E9}\u{1F1EA}', name: 'Allemagne' },
+};
+
+function extractCountry(tvgId) {
+  if (!tvgId) return '';
+  const base = tvgId.replace(/@.*$/, '');
+  const m = base.match(/\.([a-z]{2})$/i);
+  return m ? m[1].toLowerCase() : '';
+}
+
+export function getAvailableCountries(channels) {
+  const counts = {};
+  for (const ch of channels) {
+    if (ch.country) {
+      counts[ch.country] = (counts[ch.country] || 0) + 1;
+    }
+  }
+  return Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([code, count]) => ({ code, count, ...(COUNTRY_NAMES[code] || { flag: '', name: code.toUpperCase() }) }));
+}
 
 function parseExtinf(line) {
   const tvgIdMatch = line.match(/tvg-id="([^"]*)"/);
@@ -173,6 +218,7 @@ export async function fetchFrenchChannels(forceRefresh = false) {
             name,
             url,
             category: cat,
+            country: extractCountry(baseTvgId),
           });
         }
       }

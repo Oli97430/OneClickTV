@@ -1,5 +1,5 @@
 import { useRef, useCallback } from 'react';
-import { Heart, Clock, Play } from 'lucide-react';
+import { Heart, Clock, Play, WifiOff } from 'lucide-react';
 import { getChannelLogoUrl, getChannelFallbackLogoUrl } from '../services/iptvService';
 import { useI18n } from '../i18n';
 import EpgBadge from './EpgBadge';
@@ -8,6 +8,7 @@ export default function VideoCard({
   channel, onSelect, isFavorite, onToggleFavorite,
   tvMode = false, index = 0,
   draggable = false, onReorder,
+  streamDead = false,
 }) {
   const { t } = useI18n();
   const displayName = channel.displayName || channel.name;
@@ -112,7 +113,16 @@ export default function VideoCard({
           {channel.category}
         </span>
 
-        {channel.not247 && (
+        {streamDead && (
+          <span
+            className="absolute top-2 left-2 flex items-center gap-1 px-1.5 py-1 rounded-md bg-red-900/80 text-red-300 backdrop-blur-sm"
+            title={t('streamOffline')}
+          >
+            <WifiOff size={10} />
+          </span>
+        )}
+
+        {!streamDead && channel.not247 && (
           <span
             className="absolute top-2 left-2 flex items-center px-1.5 py-1 rounded-md bg-black/60 text-sky-400 backdrop-blur-sm"
             title={t('not247')}

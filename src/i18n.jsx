@@ -94,6 +94,19 @@ const translations = {
     // Settings
     language: 'Langue',
     dragToReorder: 'Glisser pour réorganiser',
+    // Search
+    searchPlaceholder: 'Rechercher une chaîne...',
+    noResults: 'Aucun résultat pour « {query} »',
+    // Country
+    allCountries: 'Tous les pays',
+    // Radio
+    radio: 'Radios',
+    // EPG grid
+    epgGuide: 'Guide des programmes',
+    channelsWithEpg: 'chaînes avec EPG',
+    // Stream health
+    streamOffline: 'Flux hors ligne',
+    streamsOnline: '{count} flux en ligne',
   },
   en: {
     all: 'All',
@@ -174,6 +187,14 @@ const translations = {
     pressAnyKey: 'Press any key',
     language: 'Language',
     dragToReorder: 'Drag to reorder',
+    searchPlaceholder: 'Search channels...',
+    noResults: 'No results for "{query}"',
+    allCountries: 'All countries',
+    radio: 'Radios',
+    epgGuide: 'Program guide',
+    channelsWithEpg: 'channels with EPG',
+    streamOffline: 'Stream offline',
+    streamsOnline: '{count} streams online',
   },
   de: {
     all: 'Alle',
@@ -254,6 +275,14 @@ const translations = {
     pressAnyKey: 'Beliebige Taste drücken',
     language: 'Sprache',
     dragToReorder: 'Ziehen zum Neuordnen',
+    searchPlaceholder: 'Sender suchen...',
+    noResults: 'Keine Ergebnisse für „{query}"',
+    allCountries: 'Alle Länder',
+    radio: 'Radios',
+    epgGuide: 'Programmführer',
+    channelsWithEpg: 'Sender mit EPG',
+    streamOffline: 'Stream offline',
+    streamsOnline: '{count} Streams online',
   },
   es: {
     all: 'Todas',
@@ -334,6 +363,14 @@ const translations = {
     pressAnyKey: 'Pulsa cualquier tecla',
     language: 'Idioma',
     dragToReorder: 'Arrastrar para reordenar',
+    searchPlaceholder: 'Buscar canales...',
+    noResults: 'Sin resultados para "{query}"',
+    allCountries: 'Todos los países',
+    radio: 'Radios',
+    epgGuide: 'Guía de programas',
+    channelsWithEpg: 'canales con EPG',
+    streamOffline: 'Flujo fuera de línea',
+    streamsOnline: '{count} flujos en línea',
   },
 };
 
