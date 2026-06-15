@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { fetchChannelEpg, formatTime } from '../services/epgService';
+import { fetchChannelEpg, formatTime, hasEpgMapping } from '../services/epgService';
 import { getChannelLogoUrl, getChannelFallbackLogoUrl } from '../services/iptvService';
 import { useI18n } from '../i18n';
 import { Clock, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -23,9 +23,7 @@ function ProgramBlock({ program, windowStart, totalMinutes }) {
   const now = Date.now();
   const isLive = new Date(program.start).getTime() <= now && new Date(program.stop).getTime() > now;
 
-  const title = program.title?.find(t => t.lang === 'fr')?.value
-    || program.title?.[0]?.value
-    || '';
+  const title = program.title || '';
 
   return (
     <div
@@ -60,7 +58,7 @@ export default function EpgGrid({ channels, tvMode }) {
   const timelineWidth = totalMinutes * CELL_PX_PER_MIN;
 
   const visibleChannels = useMemo(
-    () => channels.filter(ch => ch.tvgId).slice(0, 80),
+    () => channels.filter(ch => ch.tvgId && hasEpgMapping(ch.tvgId)).slice(0, 80),
     [channels]
   );
 
