@@ -9,7 +9,8 @@ OneClickTV est une application de bureau (Windows / macOS / Linux) et mobile (An
 ## Fonctionnalités
 
 ### Chaînes live
-- **98 chaînes francophones en direct** — Actualités, Sport, Musique, Généraliste (filtrage automatique des versions non-francophones)
+- **416 chaînes francophones en direct** — France, Belgique, Suisse, Canada, Sénégal, Côte d'Ivoire, Maroc, Cameroun… via [iptv-org/iptv](https://github.com/iptv-org/iptv) (`languages/fra.m3u`)
+- **7 catégories** — Actualités, Sport, Musique, Cinéma, Enfants, Culture & Docs, Généraliste
 - **Favoris & Récents** — Accès rapide, réorganisation par glisser-déposer
 - **Lecteur HLS lazy** — Lecture fluide des flux `.m3u8` via HLS.js (chargé à la demande)
 - **Flux de secours** — Basculement automatique sur une URL alternative si le flux principal est indisponible
@@ -29,6 +30,8 @@ OneClickTV est une application de bureau (Windows / macOS / Linux) et mobile (An
 ### Expérience TV / Box Android
 - **Mode TV** — Grille large, cartes plus grandes, sidebar en overlay
 - **Navigation D-pad complète** — Flèches directionnelles, Enter pour télécommande
+- **Bouton Retour télécommande** — Ferme le lecteur au lieu de quitter l'app (intercept `popstate`)
+- **Icône dans le launcher TV** — Catégorie `LEANBACK_LAUNCHER` pour apparaître sur les box Android TV
 - **Swipe** — Glissement gauche/droite pour changer de catégorie (mobile/tactile)
 - **Screensaver** — Écran de veille après 30 s d'inactivité (horloge + EPG + chaîne en cours)
 
@@ -50,11 +53,11 @@ OneClickTV est une application de bureau (Windows / macOS / Linux) et mobile (An
 
 Téléchargez le dernier installateur depuis les [Releases GitHub](https://github.com/Oli97430/OneClickTV/releases).
 
-- **Windows** : `OneClickTV Setup 1.2.0.exe` (installateur NSIS, 64-bit)
+- **Windows** : `OneClickTV Setup 1.3.0.exe` (installateur NSIS, 64-bit)
 
 ### Android
 
-Téléchargez `OneClickTV-1.2.0.apk` depuis les [Releases GitHub](https://github.com/Oli97430/OneClickTV/releases) ou compilez depuis les sources.
+Téléchargez `OneClickTV-1.3.0.apk` depuis les [Releases GitHub](https://github.com/Oli97430/OneClickTV/releases) ou compilez depuis les sources.
 
 ### Web (PWA)
 
@@ -99,7 +102,7 @@ npm run dev
 npm run build:desktop
 ```
 
-Génère `release/OneClickTV Setup 1.2.0.exe`.
+Génère `release/OneClickTV Setup 1.3.0.exe`.
 
 ### Compiler pour Android
 
@@ -140,7 +143,7 @@ npm run cap:android
 
 | Source | Type | Notes |
 |---|---|---|
-| [iptv-org/iptv](https://github.com/iptv-org/iptv) | Chaînes live | Playlist `fr.m3u`, flux HLS publics, filtrage francophone |
+| [iptv-org/iptv](https://github.com/iptv-org/iptv) | Chaînes live | Playlist `languages/fra.m3u`, 416 chaînes francophones mondiales |
 | [Arte API v4](https://api.arte.tv/api/emac/v4/fr/web/pages/HOME/) | VOD | Catalogue Arte (France + Allemagne + DOM-TOM) |
 | [Arte Player API v2](https://api.arte.tv/api/player/v2/config/fr/) | VOD stream | Résolution HLS, accessible globalement |
 | [France TV](https://www.france.tv) | Replay | Liens directs vers les replays officiels |

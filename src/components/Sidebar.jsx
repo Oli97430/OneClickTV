@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Tv, Newspaper, Trophy, Music, LayoutGrid, Heart, History, Film, BarChart3, Globe, ChevronDown, Shield } from 'lucide-react';
+import { Tv, Newspaper, Trophy, Music, LayoutGrid, Heart, History, Film, BarChart3, Globe, ChevronDown, Shield, Clapperboard, Baby, BookOpen } from 'lucide-react';
 import { getChannelLogoUrl, getChannelFallbackLogoUrl } from '../services/iptvService';
 import { getMonthlyStats, formatWatchTime } from '../services/statsService';
 import { useI18n, LANGUAGES } from '../i18n';
@@ -9,9 +9,12 @@ const CATEGORIES = [
   { id: 'favoris',     labelKey: 'favorites',  icon: Heart      },
   { id: 'recents',     labelKey: 'recents',    icon: History    },
   { id: 'Actualités',  labelKey: 'news',       icon: Newspaper  },
-  { id: 'Sport',       labelKey: 'sport',      icon: Trophy     },
-  { id: 'Musique',     labelKey: 'music',      icon: Music      },
-  { id: 'Généraliste', labelKey: 'general',    icon: Tv         },
+  { id: 'Sport',       labelKey: 'sport',            icon: Trophy      },
+  { id: 'Musique',     labelKey: 'music',            icon: Music       },
+  { id: 'Cinéma',      labelKey: 'cinema',           icon: Clapperboard },
+  { id: 'Enfants',     labelKey: 'kids',             icon: Baby        },
+  { id: 'Culture',     labelKey: 'cultureCategory',  icon: BookOpen    },
+  { id: 'Généraliste', labelKey: 'general',          icon: Tv          },
 ];
 
 export const VOD_ENTRY = { id: 'vod', labelKey: 'filmsAndSeries', icon: Film };

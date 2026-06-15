@@ -18,7 +18,7 @@ function loadFromStorage(key, fallback) {
   }
 }
 
-const SWIPE_CATEGORIES = ['all', 'favoris', 'recents', 'Actualités', 'Sport', 'Musique', 'Généraliste'];
+const SWIPE_CATEGORIES = ['all', 'favoris', 'recents', 'Actualités', 'Sport', 'Musique', 'Cinéma', 'Enfants', 'Culture', 'Généraliste'];
 const SKELETON_COUNT = 12;
 
 export default function App() {
@@ -40,6 +40,61 @@ export default function App() {
 
   const gridRef = useRef(null);
   const touchStartRef = useRef({ x: 0, y: 0 });
+
+  // Ref tracking current navigable state for the back-button handler
+  const navStateRef = useRef({});
+  navStateRef.current = { playerMode, vpnInfoOpen, sidebarOpen, vodActive };
+
+  // ─── Hardware back button (Android TV / Xiaomi Box) ─────────────────────
+  // Push a dummy history state so the WebView always has somewhere to "go back"
+  // instead of exiting the app. On popstate we handle in-app navigation.
+  useEffect(() => {
+    window.history.pushState({ app: 'oneclicktv' }, '');
+
+    const handleBack = () => {
+      // Re-push immediately so there's always an entry in the history stack
+      window.history.pushState({ app: 'oneclicktv' }, '');
+
+      const { playerMode: pm, vpnInfoOpen: vpn, sidebarOpen: sb, vodActive: vod } = navStateRef.current;
+
+      // 1. Exit fullscreen first
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+        return;
+      }
+      // 2. Close the full player → back to grid
+      if (pm === 'full') {
+        setSelectedChannel(null);
+        setPlayerMode('closed');
+        return;
+      }
+      // 3. Close the mini-player
+      if (pm === 'mini') {
+        setSelectedChannel(null);
+        setPlayerMode('closed');
+        return;
+      }
+      // 4. Close VPN info modal
+      if (vpn) {
+        setVpnInfoOpen(false);
+        return;
+      }
+      // 5. Close sidebar overlay
+      if (sb) {
+        setSidebarOpen(false);
+        return;
+      }
+      // 6. Exit VOD → back to live channels
+      if (vod) {
+        setVodActive(false);
+        return;
+      }
+      // 7. Already on main screen → do nothing (don't exit)
+    };
+
+    window.addEventListener('popstate', handleBack);
+    return () => window.removeEventListener('popstate', handleBack);
+  }, []);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
