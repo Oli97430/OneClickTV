@@ -12,6 +12,7 @@ import { fetchFrenchChannels, getAvailableCountries, COUNTRY_NAMES } from './ser
 import { fetchFrenchRadios } from './services/radioService';
 import { checkAllStreams, getStreamHealth } from './services/streamHealthService';
 import { useI18n } from './i18n';
+import { Capacitor } from '@capacitor/core';
 
 function loadFromStorage(key, fallback) {
   try {
@@ -126,30 +127,41 @@ export default function App() {
   navStateRef.current = { playerMode, vpnInfoOpen, sidebarOpen, vodActive, radioActive, epgActive };
 
   // ─── Hardware back button (Android TV / Xiaomi Box) ─────────────────────
-  // Push a dummy history state so the WebView always has somewhere to "go back"
-  // instead of exiting the app. On popstate we handle in-app navigation.
-  useEffect(() => {
-    window.history.pushState({ app: 'oneclicktv' }, '');
+  const handleBackAction = useCallback(() => {
+    const { playerMode: pm, vpnInfoOpen: vpn, sidebarOpen: sb, vodActive: vod, radioActive: ra, epgActive: epg } = navStateRef.current;
 
-    const handleBack = () => {
-      // Re-push immediately so there's always an entry in the history stack
-      window.history.pushState({ app: 'oneclicktv' }, '');
-
-      const { playerMode: pm, vpnInfoOpen: vpn, sidebarOpen: sb, vodActive: vod, radioActive: ra, epgActive: epg } = navStateRef.current;
-
-      if (document.fullscreenElement) { document.exitFullscreen().catch(() => {}); return; }
-      if (pm === 'full') { setSelectedChannel(null); setPlayerMode('closed'); return; }
-      if (pm === 'mini') { setSelectedChannel(null); setPlayerMode('closed'); return; }
-      if (vpn) { setVpnInfoOpen(false); return; }
-      if (sb) { setSidebarOpen(false); return; }
-      if (epg) { setEpgActive(false); return; }
-      if (ra) { setRadioActive(false); return; }
-      if (vod) { setVodActive(false); return; }
-    };
-
-    window.addEventListener('popstate', handleBack);
-    return () => window.removeEventListener('popstate', handleBack);
+    if (document.fullscreenElement) { document.exitFullscreen().catch(() => {}); return; }
+    if (pm === 'full') { setSelectedChannel(null); setPlayerMode('closed'); return; }
+    if (pm === 'mini') { setSelectedChannel(null); setPlayerMode('closed'); return; }
+    if (vpn) { setVpnInfoOpen(false); return; }
+    if (sb) { setSidebarOpen(false); return; }
+    if (epg) { setEpgActive(false); return; }
+    if (ra) { setRadioActive(false); setCategory('all'); return; }
+    if (vod) { setVodActive(false); return; }
   }, []);
+
+  useEffect(() => {
+    // Capacitor native backButton (Android hardware/remote)
+    if (Capacitor.isNativePlatform()) {
+      let cleanup;
+      import('@capacitor/app').then(({ App }) => {
+        const listener = App.addListener('backButton', ({ canGoBack }) => {
+          handleBackAction();
+        });
+        cleanup = () => listener.then(h => h.remove());
+      });
+      return () => cleanup?.();
+    }
+
+    // Web fallback: popstate for browser / Electron
+    window.history.pushState({ app: 'oneclicktv' }, '');
+    const handlePopstate = () => {
+      window.history.pushState({ app: 'oneclicktv' }, '');
+      handleBackAction();
+    };
+    window.addEventListener('popstate', handlePopstate);
+    return () => window.removeEventListener('popstate', handlePopstate);
+  }, [handleBackAction]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
