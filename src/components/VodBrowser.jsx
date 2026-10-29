@@ -14,7 +14,7 @@ const SOURCES = [
 ];
 
 // ─── Arte Browser ─────────────────────────────────────────────────────────────
-function ArteBrowser({ onPlay, tvMode, gridKeyDown, gridRef }) {
+function ArteBrowser({ onPlay, tvMode, gridRef }) {
   const { t } = useI18n();
   const [catId, setCatId]     = useState(ARTE_CATEGORIES[0].id);
   const [items, setItems]     = useState([]);
@@ -60,7 +60,7 @@ function ArteBrowser({ onPlay, tvMode, gridKeyDown, gridRef }) {
       </div>
 
       {!loading && !error && items.length > 0 && (
-        <div ref={gridRef} onKeyDown={gridKeyDown} className={`grid gap-4 ${cols} animate-fade-in-up`}>
+        <div ref={gridRef} className={`grid gap-4 ${cols} animate-fade-in-up`}>
           {items.map((item) => (
             <VodCard key={item.id} item={item} onPlay={onPlay} tvMode={tvMode} />
           ))}
@@ -185,7 +185,7 @@ function VodPlayerOverlay({ programId, onClose }) {
   }, [streamUrl, t]);
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-black animate-fade-in">
+    <div data-nav-scope className="fixed inset-0 z-50 flex flex-col bg-black animate-fade-in">
       <div className="absolute top-0 left-0 right-0 z-10 flex items-center gap-3 px-4 py-3 bg-gradient-to-b from-black/80 via-black/40 to-transparent">
         <div className="flex-1 min-w-0">
           {meta && (
@@ -239,27 +239,6 @@ export default function VodBrowser({ tvMode = false }) {
   const [playingId, setPlayingId]   = useState(null);
   const gridRef                     = useRef(null);
 
-  const handleGridKeyDown = useCallback((e) => {
-    if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) return;
-    const cards = Array.from(gridRef.current?.querySelectorAll('[data-card]') || []);
-    const idx   = cards.indexOf(document.activeElement);
-    if (idx === -1) return;
-    e.preventDefault();
-
-    if (e.key === 'ArrowRight') cards[Math.min(idx + 1, cards.length - 1)]?.focus();
-    else if (e.key === 'ArrowLeft') cards[Math.max(idx - 1, 0)]?.focus();
-    else {
-      const rect = cards[idx].getBoundingClientRect();
-      const pool = e.key === 'ArrowDown'
-        ? cards.filter((c) => c.getBoundingClientRect().top > rect.top + 10)
-        : cards.filter((c) => c.getBoundingClientRect().top < rect.top - 10);
-      if (!pool.length) return;
-      pool.reduce((b, c) =>
-        Math.abs(c.getBoundingClientRect().left - rect.left) <
-        Math.abs(b.getBoundingClientRect().left - rect.left) ? c : b
-      ).focus();
-    }
-  }, []);
 
   const handlePlay = useCallback((item) => {
     if (item.source === 'arte') {
@@ -298,7 +277,6 @@ export default function VodBrowser({ tvMode = false }) {
           onPlay={handlePlay}
           tvMode={tvMode}
           gridRef={gridRef}
-          gridKeyDown={handleGridKeyDown}
         />
       )}
       {source === 'francetv' && <FranceTvBrowser tvMode={tvMode} />}

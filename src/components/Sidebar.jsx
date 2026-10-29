@@ -186,6 +186,7 @@ export default function Sidebar({
         />
       )}
       <aside
+        inert={tvMode && !isOpen}
         className={`
           fixed inset-y-0 left-0 z-40
           bg-[var(--bg-elevated)] border-r border-[var(--border)]
@@ -207,7 +208,7 @@ export default function Sidebar({
           </div>
         </div>
 
-        <nav className="flex-1 overflow-y-auto p-2.5" onKeyDown={handleNavKeyDown}>
+        <nav data-nav-group className="flex-1 overflow-y-auto p-2.5" onKeyDown={handleNavKeyDown}>
           <ul className="space-y-1">
             {CATEGORIES.map((cat) => {
               const Icon = cat.icon;
@@ -220,6 +221,7 @@ export default function Sidebar({
                   <button
                     type="button"
                     data-sidebar-btn="true"
+                    data-active={isSelected || undefined}
                     onClick={() => onCategoryChange(cat.id)}
                     className={`
                       w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left
@@ -251,6 +253,7 @@ export default function Sidebar({
               <button
                 type="button"
                 data-sidebar-btn="true"
+                data-active={radioActive || undefined}
                 onClick={() => { onRadioClick?.(); onClose?.(); }}
                 className={`
                   w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left
@@ -271,6 +274,7 @@ export default function Sidebar({
               <button
                 type="button"
                 data-sidebar-btn="true"
+                data-active={vodActive || undefined}
                 onClick={() => { onVodClick?.(); onClose?.(); }}
                 className={`
                   w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left
@@ -291,6 +295,7 @@ export default function Sidebar({
               <button
                 type="button"
                 data-sidebar-btn="true"
+                data-active={epgActive || undefined}
                 onClick={() => { onEpgClick?.(); onClose?.(); }}
                 className={`
                   w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left

@@ -1,23 +1,12 @@
 import axios from 'axios';
+import { DEAD_STREAM_URLS } from './deadStreams';
 
 const IPTV_PLAYLIST_URL = 'https://iptv-org.github.io/iptv/languages/fra.m3u';
-const CACHE_KEY = 'oneclicktv_cache_v3';
+const CACHE_KEY = 'oneclicktv_cache_v4';
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 heure
 
-const EXTRA_CHANNELS = [
-  {
-    id: 'cnews-guaranteed',
-    tvgId: 'CNews.fr',
-    name: 'CNews',
-    displayName: 'CNews',
-    logo: '',
-    url: 'https://raw.githubusercontent.com/Sibprod/streams/main/ressources/dm/py/hls/cnews.m3u8',
-    category: 'Actualités',
-    country: 'fr',
-    geoBlocked: false,
-    not247: false,
-  },
-];
+// L'ancien flux CNews Sibprod renvoie 404 ; le CNews iptv-org fonctionne.
+const EXTRA_CHANNELS = [];
 
 /** Map iptv-org group-title → catégorie OneClickTV */
 const CATEGORY_MAP = {
@@ -209,7 +198,7 @@ export async function fetchFrenchChannels(forceRefresh = false) {
       if (i < lines.length && lines[i] && !lines[i].startsWith('#')) {
         const url = lines[i].trim();
         const cat = getCategory(name, groupTitle);
-        if (cat !== null && url.toLowerCase().includes('.m3u8')) {
+        if (cat !== null && url.toLowerCase().includes('.m3u8') && !DEAD_STREAM_URLS.has(url)) {
           const baseTvgId = tvgId.replace(/@(HD|SD|FHD|UHD|Plus\d*)$/i, '');
           channels.push({
             id: `${baseTvgId || name}-${url.slice(-20)}`.replace(/\s/g, '-'),

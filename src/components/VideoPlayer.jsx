@@ -124,7 +124,7 @@ function EpgPanel({ channel, tvMode }) {
 }
 
 // ─── Main Player ─────────────────────────────────────────────────────────────
-export default function VideoPlayer({ channel, onClose, onMinimize, isOpen, tvMode = false }) {
+export default function VideoPlayer({ channel, onClose, onMinimize, onZap, isOpen, tvMode = false }) {
   const { t } = useI18n();
   const videoRef = useRef(null);
   const hlsRef   = useRef(null);
@@ -241,13 +241,22 @@ export default function VideoPlayer({ channel, onClose, onMinimize, isOpen, tvMo
           break;
         case 'ArrowRight': video.currentTime += 10; break;
         case 'ArrowLeft':  video.currentTime -= 10; break;
-        case 'ArrowUp':    e.preventDefault(); video.volume = Math.min(1, video.volume + 0.1); break;
-        case 'ArrowDown':  e.preventDefault(); video.volume = Math.max(0, video.volume - 0.1); break;
+        // Zapping : touches chaîne +/- de la télécommande, et haut/bas en mode TV (le volume reste sur la TV)
+        case 'ChannelUp': case 'PageUp':     e.preventDefault(); onZap?.(1); break;
+        case 'ChannelDown': case 'PageDown': e.preventDefault(); onZap?.(-1); break;
+        case 'ArrowUp':
+          e.preventDefault();
+          if (tvMode && onZap) onZap(1); else video.volume = Math.min(1, video.volume + 0.1);
+          break;
+        case 'ArrowDown':
+          e.preventDefault();
+          if (tvMode && onZap) onZap(-1); else video.volume = Math.max(0, video.volume - 0.1);
+          break;
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [isOpen, toggleFullscreen, onClose, onMinimize]);
+  }, [isOpen, toggleFullscreen, onClose, onMinimize, onZap, tvMode]);
 
   // ─── Recording & PiP ─────────────────────────────────────────────────────
   useEffect(() => {

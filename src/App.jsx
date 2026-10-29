@@ -12,6 +12,7 @@ import { fetchFrenchChannels, getAvailableCountries, COUNTRY_NAMES } from './ser
 import { fetchFrenchRadios } from './services/radioService';
 import { checkAllStreams, getStreamHealth } from './services/streamHealthService';
 import { useI18n } from './i18n';
+import { useSpatialNavigation, focusElement } from './hooks/useSpatialNavigation';
 import { Capacitor } from '@capacitor/core';
 
 function loadFromStorage(key, fallback) {
@@ -119,8 +120,11 @@ export default function App() {
   const [epgActive, setEpgActive]       = useState(false);
   const [healthTick, setHealthTick]     = useState(0);
 
-  const gridRef = useRef(null);
   const touchStartRef = useRef({ x: 0, y: 0 });
+  const lastCardRef = useRef(null);
+  const zapListRef = useRef([]);
+  const focusLastCardRef = useRef(null);
+  const focusSidebarRef = useRef(null);
 
   // Ref tracking current navigable state for the back-button handler
   const navStateRef = useRef({});
@@ -134,10 +138,12 @@ export default function App() {
     if (pm === 'full') { setSelectedChannel(null); setPlayerMode('closed'); return; }
     if (pm === 'mini') { setSelectedChannel(null); setPlayerMode('closed'); return; }
     if (vpn) { setVpnInfoOpen(false); return; }
-    if (sb) { setSidebarOpen(false); return; }
+    if (sb) { setSidebarOpen(false); focusLastCardRef.current?.(); return; }
     if (epg) { setEpgActive(false); return; }
     if (ra) { setRadioActive(false); setCategory('all'); return; }
     if (vod) { setVodActive(false); return; }
+    // Rien à fermer : retour vers le menu
+    if (!document.activeElement?.closest('aside')) focusSidebarRef.current?.();
   }, []);
 
   useEffect(() => {
@@ -153,6 +159,16 @@ export default function App() {
       return () => cleanup?.();
     }
 
+    // Web / Electron : Échap ou Retour arrière = bouton retour (le lecteur plein écran gère Échap lui-même)
+    const handleBackKey = (e) => {
+      if (!['Escape', 'Backspace', 'BrowserBack', 'GoBack'].includes(e.key)) return;
+      if (e.target.closest?.('input, textarea')) return;
+      if (navStateRef.current.playerMode === 'full') return;
+      e.preventDefault();
+      handleBackAction();
+    };
+    window.addEventListener('keydown', handleBackKey);
+
     // Web fallback: popstate for browser / Electron
     window.history.pushState({ app: 'oneclicktv' }, '');
     const handlePopstate = () => {
@@ -160,7 +176,10 @@ export default function App() {
       handleBackAction();
     };
     window.addEventListener('popstate', handlePopstate);
-    return () => window.removeEventListener('popstate', handlePopstate);
+    return () => {
+      window.removeEventListener('popstate', handlePopstate);
+      window.removeEventListener('keydown', handleBackKey);
+    };
   }, [handleBackAction]);
 
   useEffect(() => {
@@ -230,9 +249,58 @@ export default function App() {
     setPlayerMode('closed');
   }, []);
 
+  // Revient sur la dernière chaîne sélectionnée si elle est encore affichée, sinon la première
   const focusFirstCard = useCallback(() => {
-    setTimeout(() => gridRef.current?.querySelector('[data-card]')?.focus(), 50);
+    setTimeout(() => {
+      const last = lastCardRef.current;
+      const target = last?.isConnected && last.closest('main') ? last : document.querySelector('main [data-card]');
+      focusElement(target);
+    }, 50);
   }, []);
+
+  const focusSidebar = useCallback(() => {
+    if (tvMode || window.innerWidth < 1024) setSidebarOpen(true);
+    setTimeout(() => {
+      focusElement(document.querySelector('aside [data-sidebar-btn][data-active]') || document.querySelector('aside [data-sidebar-btn]'));
+    }, 80);
+  }, [tvMode]);
+
+  const handleSidebarExit = useCallback(() => {
+    if (tvMode || window.innerWidth < 1024) setSidebarOpen(false);
+    focusFirstCard();
+  }, [tvMode, focusFirstCard]);
+
+  focusLastCardRef.current = focusFirstCard;
+  focusSidebarRef.current = focusSidebar;
+
+  useSpatialNavigation({
+    enabled: playerMode !== 'full',
+    onEdge: (dir, el) => { if (dir === 'left' && !el.closest('aside')) focusSidebar(); },
+    onNoFocus: focusFirstCard,
+  });
+
+  // Mémorise la dernière carte focalisée
+  useEffect(() => {
+    const onFocusIn = (e) => {
+      const card = e.target.closest?.('main [data-card]');
+      if (card) lastCardRef.current = card;
+    };
+    document.addEventListener('focusin', onFocusIn);
+    return () => document.removeEventListener('focusin', onFocusIn);
+  }, []);
+
+  // Focus initial sur TV / Android : la télécommande est utilisable sans Tab
+  useEffect(() => {
+    if (loading || error || !(tvMode || Capacitor.isNativePlatform())) return;
+    if (!document.activeElement || document.activeElement === document.body) focusFirstCard();
+  }, [loading, error, tvMode, focusFirstCard]);
+
+  // Fermeture du lecteur : retour sur la chaîne qu'on regardait
+  const prevPlayerModeRef = useRef(playerMode);
+  useEffect(() => {
+    if (prevPlayerModeRef.current === 'full' && playerMode !== 'full') focusFirstCard();
+    prevPlayerModeRef.current = playerMode;
+  }, [playerMode, focusFirstCard]);
 
   const handleCategoryChange = useCallback((id) => {
     setVodActive(false);
@@ -287,33 +355,6 @@ export default function App() {
     }
   }, [category, vodActive, handleCategoryChange]);
 
-  // D-pad navigation
-  const handleGridKeyDown = useCallback((e) => {
-    if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) return;
-    const grid = gridRef.current;
-    if (!grid) return;
-
-    const cards = Array.from(grid.querySelectorAll('[data-card]'));
-    const idx   = cards.indexOf(document.activeElement);
-    if (idx === -1) return;
-    e.preventDefault();
-
-    if (e.key === 'ArrowRight') {
-      cards[Math.min(idx + 1, cards.length - 1)]?.focus();
-    } else if (e.key === 'ArrowLeft') {
-      cards[Math.max(idx - 1, 0)]?.focus();
-    } else {
-      const rect = cards[idx].getBoundingClientRect();
-      const pool = e.key === 'ArrowDown'
-        ? cards.filter((c) => c.getBoundingClientRect().top > rect.top + 10)
-        : cards.filter((c) => c.getBoundingClientRect().top < rect.top - 10);
-      if (!pool.length) return;
-      pool.reduce((best, c) =>
-        Math.abs(c.getBoundingClientRect().left - rect.left) <
-        Math.abs(best.getBoundingClientRect().left - rect.left) ? c : best
-      ).focus();
-    }
-  }, []);
 
   const favoriteIds = useMemo(() => new Set(favorites.map((c) => c.id)), [favorites]);
 
@@ -364,6 +405,20 @@ export default function App() {
 
   const isDraggableFavorites = category === 'favoris';
 
+  // Ouverture depuis la grille : la liste affichée sert à zapper
+  const handleOpenFromGrid = useCallback((channel) => {
+    zapListRef.current = filteredChannels;
+    handleSelectChannel(channel);
+  }, [filteredChannels, handleSelectChannel]);
+
+  const handleZap = useCallback((delta) => {
+    const list = zapListRef.current.length ? zapListRef.current : channels;
+    if (!list.length || !selectedChannel) return;
+    const idx = list.findIndex((c) => c.id === selectedChannel.id);
+    const next = list[(idx + delta + list.length) % list.length];
+    if (next) handleSelectChannel(next);
+  }, [channels, selectedChannel, handleSelectChannel]);
+
   return (
     <div className="min-h-screen flex bg-[var(--bg-base)]">
       <Sidebar
@@ -375,7 +430,7 @@ export default function App() {
         recents={recents}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
-        onFocusGrid={focusFirstCard}
+        onFocusGrid={handleSidebarExit}
         tvMode={tvMode}
         onVodClick={handleVodClick}
         vodActive={vodActive}
@@ -548,22 +603,18 @@ export default function App() {
                 <VirtualChannelList
                   channels={filteredChannels}
                   tvMode={tvMode}
-                  onSelect={handleSelectChannel}
+                  onSelect={handleOpenFromGrid}
                   favoriteIds={favoriteIds}
                   onToggleFavorite={toggleFavorite}
                   healthTick={healthTick}
                 />
               ) : (
-                <div
-                  ref={gridRef}
-                  onKeyDown={handleGridKeyDown}
-                  className={`grid gap-4 lg:gap-5 ${gridCols}`}
-                >
+                <div className={`grid gap-4 lg:gap-5 ${gridCols}`}>
                   {filteredChannels.map((channel, i) => (
                     <VideoCard
                       key={channel.id}
                       channel={channel}
-                      onSelect={handleSelectChannel}
+                      onSelect={handleOpenFromGrid}
                       isFavorite={favoriteIds.has(channel.id)}
                       onToggleFavorite={toggleFavorite}
                       tvMode={tvMode}
@@ -594,6 +645,7 @@ export default function App() {
         channel={selectedChannel}
         onClose={handleClosePlayer}
         onMinimize={handleMinimize}
+        onZap={handleZap}
         isOpen={playerMode === 'full'}
         tvMode={tvMode}
       />
